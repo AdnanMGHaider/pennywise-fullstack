@@ -1,0 +1,34 @@
+# ─────────────── dependencies ───────────────
+/node_modules
+/.pnp
+.pnp.js
+
+# ─────────────── testing ───────────────
+/coverage
+
+# ─────────────── Next.js build artifacts ───────────────
+/.next/
+/out/
+
+# ─────────────── production bundles ───────────────
+/build
+
+# ─────────────── secrets & logs (keep OUT of git) ───────────────
+.env
+.env*.local
+.cursor/mcp.json          # Task-Master / Cursor secrets
+*.log                     # generic log files (npm, custom logs, etc.)
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# ─────────────── deployment configs ───────────────
+.vercel                   # Vercel build cache & config
+
+# ─────────────── misc OS / editor files ───────────────
+.DS_Store                 # macOS
+*.pem                     # SSL keys
+
+# ─────────────── TypeScript aux ───────────────
+*.tsbuildinfo
+next-env.d.ts

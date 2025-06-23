@@ -1,0 +1,12 @@
+# Node/Next.js
+pennywise-frontend/node_modules
+pennywise-frontend/.next
+
+# Java/Spring
+pennywise-backend/target
+pennywise-backend/.idea
+pennywise-backend/*.iml
+
+# IDE / OS
+.DS_Store
+*.log
