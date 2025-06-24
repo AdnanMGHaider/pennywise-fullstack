@@ -15,6 +15,8 @@ import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.io.IOException;
 import java.time.LocalDate;
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import java.util.List; // For checking transaction list size
 import java.util.Map; // For structured response
 
@@ -31,6 +33,7 @@ public class AIService {
 
     private static final String OPENAI_API_URL = "https://api.openai.com/v1/chat/completions";
     private final HttpClient httpClient = HttpClient.newHttpClient();
+    private final ObjectMapper objectMapper = new ObjectMapper(); // Jackson's ObjectMapper
 
     @Transactional
     public Map<String, Object> generateAiAdviceForUser(Long userId) {
@@ -53,19 +56,20 @@ public class AIService {
         String prompt = constructPromptForUser(userId);
 
         try {
-            System.out.println("AIService: Attempting to generate AI advice for userId: " + userId);
+            // System.out.println("AIService: Attempting to generate AI advice for userId: " + userId); // Reduced verbosity
 
             if (openaiApiKey == null || openaiApiKey.isEmpty() || openaiApiKey.equals("YOUR_OPENAI_API_KEY_PLACEHOLDER")) {
-                System.err.println("AIService: OpenAI API Key is missing or is a placeholder.");
+                System.err.println("AIService: OpenAI API Key is missing or is a placeholder. Cannot generate AI advice.");
                 return Map.of("error", "AI service not configured by administrator (API key missing).", "generationsLeft", 3 - currentCount);
-            } else {
-                // Masked API key logging
-                String maskedApiKey = openaiApiKey.length() > 8 ? openaiApiKey.substring(0, 5) + "..." + openaiApiKey.substring(openaiApiKey.length() - 4) : "API Key (short)";
-                System.out.println("AIService: OpenAI API Key loaded (masked): " + maskedApiKey);
             }
+            // Optional: Log masked key once on service startup or less frequently if needed for debugging deployment.
+            // else {
+            //     String maskedApiKey = openaiApiKey.length() > 8 ? openaiApiKey.substring(0, 5) + "..." + openaiApiKey.substring(openaiApiKey.length() - 4) : "API Key (short)";
+            //     System.out.println("AIService: OpenAI API Key loaded (masked): " + maskedApiKey);
+            // }
 
             String requestBody = String.format("{\"model\": \"gpt-3.5-turbo\", \"messages\": [{\"role\": \"user\", \"content\": \"%s\"}], \"max_tokens\": 200}", escapeJson(prompt));
-            System.out.println("AIService: OpenAI Request Body: " + requestBody);
+            // System.out.println("AIService: OpenAI Request Body: " + requestBody); // Reduced verbosity
 
             HttpRequest request = HttpRequest.newBuilder()
                     .uri(URI.create(OPENAI_API_URL))
@@ -76,36 +80,42 @@ public class AIService {
 
             HttpResponse<String> response = httpClient.send(request, HttpResponse.BodyHandlers.ofString());
 
-            System.out.println("AIService: OpenAI Response Status Code: " + response.statusCode());
-            System.out.println("AIService: OpenAI Response Body: " + response.body());
+            // System.out.println("AIService: OpenAI Response Status Code: " + response.statusCode()); // Reduced verbosity
+            // System.out.println("AIService: OpenAI Response Body: " + response.body()); // Reduced verbosity - only log on error
 
             if (response.statusCode() == 200) {
                 String responseBody = response.body();
                 String adviceFromAI = parseAdviceFromOpenAIResponse(responseBody);
 
-                if (adviceFromAI == null || adviceFromAI.isEmpty()) {
-                    System.err.println("AIService: Failed to parse advice from OpenAI response or advice was empty.");
-                    adviceFromAI = "AI could not generate advice at this moment. Please try again later.";
+                if (adviceFromAI != null && !adviceFromAI.isEmpty()) {
+                    // System.out.println("AIService: Successfully parsed advice."); // Reduced verbosity
+                    user.setAiAdviceCount(currentCount + 1); // Increment count only on successful advice
+                    userRepository.save(user);
+                    return Map.of("advice", adviceFromAI, "generationsLeft", 3 - user.getAiAdviceCount());
                 } else {
-                    System.out.println("AIService: Successfully parsed advice: " + adviceFromAI.substring(0, Math.min(adviceFromAI.length(), 100)) + "..."); // Log first 100 chars
+                    System.err.println("AIService: Failed to parse advice from OpenAI response (body was: " + responseBody.substring(0, Math.min(responseBody.length(), 500)) + "...). Count not incremented.");
+                    return Map.of("error", "AI could not extract advice at this moment. Please try again later.",
+                                  "generationsLeft", 3 - currentCount);
                 }
-
-                user.setAiAdviceCount(currentCount + 1);
-                userRepository.save(user);
-                return Map.of("advice", adviceFromAI, "generationsLeft", 3 - user.getAiAdviceCount());
             } else {
-                System.err.println("OpenAI API Error - Status: " + response.statusCode() + ", Body: " + response.body());
-                return Map.of("error", "Failed to get advice from AI service. Status: " + response.statusCode(), "generationsLeft", 3 - currentCount);
+                System.err.println("OpenAI API Error - Status: " + response.statusCode() + ", Body: " + response.body().substring(0, Math.min(response.body().length(), 500)) + "...");
+                return Map.of("error", "Failed to get advice from AI service (Status: " + response.statusCode() + ").",
+                              "generationsLeft", 3 - currentCount);
             }
 
         } catch (IOException | InterruptedException e) {
             Thread.currentThread().interrupt(); // Restore interrupt status
-            System.err.println("Error calling OpenAI API: " + e.getMessage());
+            System.err.println("AIService: Error calling OpenAI API: " + e.getMessage());
             return Map.of("error", "Error communicating with AI service.", "generationsLeft", 3 - currentCount);
+        } catch (Exception e) { // Catch other potential exceptions like from JSON parsing
+            System.err.println("AIService: Unexpected error during AI advice generation: " + e.getMessage());
+            e.printStackTrace(); // Log stack trace for unexpected errors
+            return Map.of("error", "An unexpected error occurred while generating advice.", "generationsLeft", 3 - currentCount);
         }
     }
 
     private String escapeJson(String raw) {
+        // Basic escaping for JSON string values. For complex objects, a JSON library's serialization is preferred.
         return raw.replace("\\", "\\\\")
                   .replace("\"", "\\\"")
                   .replace("\b", "\\b")
@@ -116,24 +126,24 @@ public class AIService {
     }
 
     private String parseAdviceFromOpenAIResponse(String responseBody) {
-        // Extremely basic and fragile JSON parsing. Replace with a library in a real app.
         try {
-            // Example: {"choices":[{"message":{"role":"assistant","content":"This is your advice."}}]}
-            int contentStart = responseBody.indexOf("\"content\":\"");
-            if (contentStart == -1) return null;
-            contentStart += 11; // length of "\"content\":\""
-            int contentEnd = responseBody.indexOf("\"", contentStart);
-            if (contentEnd == -1) return null;
-
-            String advice = responseBody.substring(contentStart, contentEnd);
-            // Unescape common sequences that might be in the advice
-            return advice.replace("\\n", "\n").replace("\\\"", "\"").replace("\\\\", "\\");
-        } catch (Exception e) {
-            System.err.println("Error parsing OpenAI response: " + e.getMessage());
+            JsonNode rootNode = objectMapper.readTree(responseBody);
+            JsonNode choicesNode = rootNode.path("choices");
+            if (choicesNode.isArray() && !choicesNode.isEmpty()) {
+                JsonNode firstChoice = choicesNode.get(0);
+                JsonNode messageNode = firstChoice.path("message");
+                JsonNode contentNode = messageNode.path("content");
+                if (!contentNode.isMissingNode()) {
+                    return contentNode.asText();
+                }
+            }
+            System.err.println("AIService: 'content' field not found in the expected path in OpenAI response.");
+            return null;
+        } catch (IOException e) {
+            System.err.println("AIService: IOException while parsing OpenAI response: " + e.getMessage());
             return null;
         }
     }
-
 
     private boolean hasSufficientData(Long userId) {
         // Check if user has at least 1 income and 1 expense transaction
