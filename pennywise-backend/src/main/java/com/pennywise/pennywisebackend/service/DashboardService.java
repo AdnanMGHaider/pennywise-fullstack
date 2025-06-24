@@ -47,36 +47,152 @@ public class DashboardService {
                 .orElseThrow(() -> new RuntimeException("User not found in database. This should not happen if authenticated."));
     }
 
-    public DashboardSummaryDTO getDashboardSummary(LocalDate upToDate) {
+    public DashboardSummaryDTO getDashboardSummary(LocalDate reportDate) {
         User currentUser = getCurrentUser();
         Long userId = currentUser.getId();
-        LocalDate startDate = LocalDate.of(1970, 1, 1); // Consider if this start date is always appropriate
 
-        List<Transaction> transactions = transactionRepository.findByUserIdAndDateBetween(userId, startDate, upToDate);
+        // Determine current month and previous month
+        YearMonth currentYearMonth = YearMonth.from(reportDate);
+        YearMonth previousYearMonth = currentYearMonth.minusMonths(1);
 
-        BigDecimal totalIncome = transactions.stream()
+        LocalDate currentMonthStartDate = currentYearMonth.atDay(1);
+        LocalDate currentMonthEndDate = currentYearMonth.atEndOfMonth();
+        LocalDate previousMonthEndDate = previousYearMonth.atEndOfMonth();
+        LocalDate veryStartDate = LocalDate.of(1970, 1, 1); // For lifetime calculations
+
+        // --- Monthly Income and Expenses for the current month ---
+        List<Transaction> currentMonthTransactions = transactionRepository.findByUserIdAndDateBetween(userId, currentMonthStartDate, currentMonthEndDate);
+
+        BigDecimal monthlyIncome = currentMonthTransactions.stream()
                 .filter(t -> "income".equalsIgnoreCase(t.getType()))
                 .map(Transaction::getAmount)
                 .reduce(BigDecimal.ZERO, BigDecimal::add);
 
-        BigDecimal totalExpenses = transactions.stream()
+        BigDecimal monthlyExpenses = currentMonthTransactions.stream()
                 .filter(t -> "expense".equalsIgnoreCase(t.getType()))
-                .map(Transaction::getAmount) // expenses are stored negative
+                .map(Transaction::getAmount)
                 .reduce(BigDecimal.ZERO, BigDecimal::add)
-                .abs(); // make it positive for summary display
+                .abs(); // make it positive
 
-        BigDecimal netWorth = totalIncome.subtract(totalExpenses);
+        // --- Lifetime Net Worth (up to reportDate) ---
+        List<Transaction> allTransactionsUpToReportDate = transactionRepository.findByUserIdAndDateBetween(userId, veryStartDate, reportDate);
+        BigDecimal lifetimeIncome = allTransactionsUpToReportDate.stream()
+                .filter(t -> "income".equalsIgnoreCase(t.getType()))
+                .map(Transaction::getAmount)
+                .reduce(BigDecimal.ZERO, BigDecimal::add);
+        BigDecimal lifetimeExpenses = allTransactionsUpToReportDate.stream()
+                .filter(t -> "expense".equalsIgnoreCase(t.getType()))
+                .map(Transaction::getAmount)
+                .reduce(BigDecimal.ZERO, BigDecimal::add)
+                .abs();
+        BigDecimal lifetimeNetWorth = lifetimeIncome.subtract(lifetimeExpenses);
 
-        BigDecimal savingsRate = BigDecimal.ZERO;
-        if (totalIncome.compareTo(BigDecimal.ZERO) > 0) {
-            // Ensure netWorth is not negative for savings rate calculation if income is positive
-            // Or clarify how savings rate is defined if netWorth is negative.
-            // savingsRate = (netWorth.max(BigDecimal.ZERO)).divide(totalIncome, 4, BigDecimal.ROUND_HALF_UP)
-            savingsRate = netWorth.divide(totalIncome, 4, RoundingMode.HALF_UP) // Retained original logic
-                                  .multiply(new BigDecimal(100));
+        // --- Net Worth Change Percentage (MoM) ---
+        // Net worth at the end of the current month
+        List<Transaction> allTransactionsUpToCurrentMonthEnd = transactionRepository.findByUserIdAndDateBetween(userId, veryStartDate, currentMonthEndDate);
+        BigDecimal netWorthCurrentMonthEnd = allTransactionsUpToCurrentMonthEnd.stream()
+                .filter(t -> "income".equalsIgnoreCase(t.getType()))
+                .map(Transaction::getAmount)
+                .reduce(BigDecimal.ZERO, BigDecimal::add)
+                .subtract(allTransactionsUpToCurrentMonthEnd.stream()
+                        .filter(t -> "expense".equalsIgnoreCase(t.getType()))
+                        .map(Transaction::getAmount)
+                        .reduce(BigDecimal.ZERO, BigDecimal::add).abs());
+
+        // Net worth at the end of the previous month
+        BigDecimal netWorthPreviousMonthEnd = BigDecimal.ZERO;
+        if (reportDate.isAfter(previousMonthEndDate) || reportDate.isEqual(previousMonthEndDate)) { // Ensure previous month is not in future
+             List<Transaction> allTransactionsUpToPreviousMonthEnd = transactionRepository.findByUserIdAndDateBetween(userId, veryStartDate, previousMonthEndDate);
+             netWorthPreviousMonthEnd = allTransactionsUpToPreviousMonthEnd.stream()
+                .filter(t -> "income".equalsIgnoreCase(t.getType()))
+                .map(Transaction::getAmount)
+                .reduce(BigDecimal.ZERO, BigDecimal::add)
+                .subtract(allTransactionsUpToPreviousMonthEnd.stream()
+                        .filter(t -> "expense".equalsIgnoreCase(t.getType()))
+                        .map(Transaction::getAmount)
+                        .reduce(BigDecimal.ZERO, BigDecimal::add).abs());
         }
 
-        return new DashboardSummaryDTO(totalIncome, totalExpenses, netWorth, savingsRate);
+
+        BigDecimal netWorthChangePercentage = BigDecimal.ZERO;
+        if (netWorthPreviousMonthEnd.compareTo(BigDecimal.ZERO) != 0) { // Avoid division by zero
+            BigDecimal change = netWorthCurrentMonthEnd.subtract(netWorthPreviousMonthEnd);
+            netWorthChangePercentage = change.divide(netWorthPreviousMonthEnd, 4, RoundingMode.HALF_UP)
+                                            .multiply(new BigDecimal(100));
+        } else if (netWorthCurrentMonthEnd.compareTo(BigDecimal.ZERO) > 0) {
+            netWorthChangePercentage = new BigDecimal(100); // From 0 to positive is +100% change for simplicity here, could be infinity
+        }
+        // If both are zero, percentage is 0. If previous is zero and current is negative, it's -100%.
+
+        // --- Monthly Savings Rate ---
+        BigDecimal monthlySavingsRate = BigDecimal.ZERO;
+        if (monthlyIncome.compareTo(BigDecimal.ZERO) > 0) {
+            BigDecimal netMonthlySavings = monthlyIncome.subtract(monthlyExpenses);
+            monthlySavingsRate = netMonthlySavings.divide(monthlyIncome, 4, RoundingMode.HALF_UP)
+                                                 .multiply(new BigDecimal(100));
+        }
+
+        // The DTO's totalIncome and totalExpenses fields will now represent monthly values.
+        // NetWorth remains lifetime. SavingsRate is monthly. netWorthChangePercentage is new.
+
+        // --- Calculate MoM changes for Income, Expenses, and Savings Rate ---
+        // Fetch Previous Month's Income and Expenses
+        LocalDate previousMonthStartDate = previousYearMonth.atDay(1);
+        // Note: previousMonthEndDate is already defined above
+
+        List<Transaction> previousMonthTransactions = transactionRepository.findByUserIdAndDateBetween(userId, previousMonthStartDate, previousMonthEndDate);
+
+        BigDecimal previousMonthIncome = previousMonthTransactions.stream()
+                .filter(t -> "income".equalsIgnoreCase(t.getType()))
+                .map(Transaction::getAmount)
+                .reduce(BigDecimal.ZERO, BigDecimal::add);
+
+        BigDecimal previousMonthExpenses = previousMonthTransactions.stream()
+                .filter(t -> "expense".equalsIgnoreCase(t.getType()))
+                .map(Transaction::getAmount)
+                .reduce(BigDecimal.ZERO, BigDecimal::add)
+                .abs();
+
+        // Previous Month's Savings Rate
+        BigDecimal previousMonthSavingsRate = BigDecimal.ZERO;
+        if (previousMonthIncome.compareTo(BigDecimal.ZERO) > 0) {
+            BigDecimal netPreviousMonthSavings = previousMonthIncome.subtract(previousMonthExpenses);
+            previousMonthSavingsRate = netPreviousMonthSavings.divide(previousMonthIncome, 4, RoundingMode.HALF_UP)
+                                                             .multiply(new BigDecimal(100));
+        }
+
+        // Calculate Percentage Changes
+        BigDecimal monthlyIncomeChangePercentage = calculatePercentageChange(monthlyIncome, previousMonthIncome);
+        BigDecimal monthlyExpensesChangePercentage = calculatePercentageChange(monthlyExpenses, previousMonthExpenses);
+        // For expenses, an increase is often seen as "negative" by users, so if current > previous, it's a positive % change by this formula.
+        // The frontend can decide to color it red if it's a positive % change for expenses.
+        BigDecimal savingsRateChangePercentage = calculatePercentageChange(monthlySavingsRate, previousMonthSavingsRate);
+
+
+        return new DashboardSummaryDTO(
+                monthlyIncome,
+                monthlyExpenses,
+                lifetimeNetWorth,
+                monthlySavingsRate,
+                netWorthChangePercentage,
+                monthlyIncomeChangePercentage,
+                monthlyExpensesChangePercentage,
+                savingsRateChangePercentage
+        );
+    }
+
+    private BigDecimal calculatePercentageChange(BigDecimal currentValue, BigDecimal previousValue) {
+        if (previousValue == null || previousValue.compareTo(BigDecimal.ZERO) == 0) {
+            // If previous value is zero:
+            // If current value is also zero, change is 0%.
+            // If current value is positive, change is +100% (or undefined/infinite, simplified to 100%).
+            // If current value is negative, change is -100%.
+            if (currentValue.compareTo(BigDecimal.ZERO) == 0) return BigDecimal.ZERO;
+            return currentValue.compareTo(BigDecimal.ZERO) > 0 ? new BigDecimal(100) : new BigDecimal(-100);
+        }
+        BigDecimal change = currentValue.subtract(previousValue);
+        return change.divide(previousValue.abs(), 4, RoundingMode.HALF_UP) // use .abs() for previous value in denominator
+                     .multiply(new BigDecimal(100));
     }
 
     public List<ExpenseBreakdownDTO> getExpenseBreakdown(LocalDate startDate, LocalDate endDate) {

@@ -14,4 +14,9 @@ public class DashboardSummaryDTO {
     private BigDecimal totalExpenses;
     private BigDecimal netWorth;
     private BigDecimal savingsRate; // as a percentage
+    private BigDecimal netWorthChangePercentage; // Month-over-month net worth change
+
+    private BigDecimal monthlyIncomeChangePercentage;
+    private BigDecimal monthlyExpensesChangePercentage;
+    private BigDecimal savingsRateChangePercentage;
 }
