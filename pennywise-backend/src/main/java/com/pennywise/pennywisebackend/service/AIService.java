@@ -161,23 +161,31 @@ public class AIService {
 
         // Construct a detailed prompt
         StringBuilder promptBuilder = new StringBuilder();
-        promptBuilder.append("Based on the following financial summary for the current month, provide three distinct and actionable financial advice bullet points for the user. Each bullet point should be a concrete suggestion or observation.\n\n");
-        promptBuilder.append("Financial Summary:\n");
+        promptBuilder.append("You are a financial advisor. Analyze the following specific financial data for a user and provide three distinct, actionable financial advice bullet points. ");
+        promptBuilder.append("Each piece of advice MUST directly relate to and reference the provided figures where appropriate. Aim for concrete suggestions.\n\n");
+
+        promptBuilder.append("User's Financial Data (Current Month):\n");
         promptBuilder.append(String.format("- Monthly Income: $%.2f\n", summary.getTotalIncome()));
         promptBuilder.append(String.format("- Monthly Expenses: $%.2f\n", summary.getTotalExpenses()));
+
+        // Calculate and include Net Monthly Cash Flow
+        java.math.BigDecimal netMonthlyCashFlow = summary.getTotalIncome().subtract(summary.getTotalExpenses());
+        promptBuilder.append(String.format("- Net Monthly Cash Flow: $%.2f\n", netMonthlyCashFlow));
+
         promptBuilder.append(String.format("- Savings Rate: %.1f%%\n", summary.getSavingsRate()));
-        promptBuilder.append(String.format("- Net Worth (Lifetime): $%.2f\n", summary.getNetWorth()));
-        if (summary.getAiGenerationsLeft() != null && summary.getNetWorthChangePercentage() != null) { // NetWorthChangePercentage might be null if previous month had no data
+        promptBuilder.append(String.format("- Lifetime Net Worth: $%.2f\n", summary.getNetWorth()));
+        if (summary.getNetWorthChangePercentage() != null) { // Check if NetWorthChangePercentage itself is null
              promptBuilder.append(String.format("- Net Worth Month-over-Month Change: %.1f%%\n", summary.getNetWorthChangePercentage()));
         }
         // TODO: Consider fetching top 2-3 expense categories for more specific advice if easily available
-        // promptBuilder.append("- Top Expense Categories: Food ($XXX), Transportation ($YYY)\n");
+        // e.g., promptBuilder.append(String.format("- Top Expense: Food $%.2f\n", topFoodExpense));
 
-        promptBuilder.append("\nRequested Advice Format (exactly three bullet points):\n");
-        promptBuilder.append("- [Specific actionable advice point 1]\n");
-        promptBuilder.append("- [Specific actionable advice point 2]\n");
-        promptBuilder.append("- [Specific actionable advice point 3]\n");
-        promptBuilder.append("\nBe encouraging and focus on concrete steps. Do not ask questions.");
+        promptBuilder.append("\nBased *specifically* on these numbers, provide your three bullet points of advice below. For example, if income is $5000 and expenses are $4500 (leaving $500 net cash flow), and savings rate is 10%, you might suggest ways to increase that $500 or reduce specific (if known) expenses. If Net Worth MoM change is negative, address potential reasons or concerns.\n");
+        promptBuilder.append("Requested Advice (exactly three bullet points directly referencing the data above):\n");
+        promptBuilder.append("- [Advice point 1 related to the user's specific data]\n");
+        promptBuilder.append("- [Advice point 2 related to the user's specific data]\n");
+        promptBuilder.append("- [Advice point 3 related to the user's specific data]\n");
+        promptBuilder.append("\nBe encouraging. Do not ask questions. Focus on data-driven advice.");
 
         return promptBuilder.toString();
     }
