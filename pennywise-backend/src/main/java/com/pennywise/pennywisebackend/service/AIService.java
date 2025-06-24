@@ -53,15 +53,19 @@ public class AIService {
         String prompt = constructPromptForUser(userId);
 
         try {
-            // Replace this with your actual API key when prompted
-            if (openaiApiKey == null || openaiApiKey.equals("YOUR_OPENAI_API_KEY_PLACEHOLDER") || openaiApiKey.isEmpty()) {
-                 // Ask user for API key - this part is tricky in automated flow.
-                 // For now, let's return a message to set it up.
-                 System.err.println("OpenAI API Key is not configured. Please set it in application.properties or environment variables.");
-                 return Map.of("error", "AI service not configured by administrator (API key missing).", "generationsLeft", 3 - currentCount);
+            System.out.println("AIService: Attempting to generate AI advice for userId: " + userId);
+
+            if (openaiApiKey == null || openaiApiKey.isEmpty() || openaiApiKey.equals("YOUR_OPENAI_API_KEY_PLACEHOLDER")) {
+                System.err.println("AIService: OpenAI API Key is missing or is a placeholder.");
+                return Map.of("error", "AI service not configured by administrator (API key missing).", "generationsLeft", 3 - currentCount);
+            } else {
+                // Masked API key logging
+                String maskedApiKey = openaiApiKey.length() > 8 ? openaiApiKey.substring(0, 5) + "..." + openaiApiKey.substring(openaiApiKey.length() - 4) : "API Key (short)";
+                System.out.println("AIService: OpenAI API Key loaded (masked): " + maskedApiKey);
             }
 
             String requestBody = String.format("{\"model\": \"gpt-3.5-turbo\", \"messages\": [{\"role\": \"user\", \"content\": \"%s\"}], \"max_tokens\": 200}", escapeJson(prompt));
+            System.out.println("AIService: OpenAI Request Body: " + requestBody);
 
             HttpRequest request = HttpRequest.newBuilder()
                     .uri(URI.create(OPENAI_API_URL))
@@ -72,14 +76,18 @@ public class AIService {
 
             HttpResponse<String> response = httpClient.send(request, HttpResponse.BodyHandlers.ofString());
 
+            System.out.println("AIService: OpenAI Response Status Code: " + response.statusCode());
+            System.out.println("AIService: OpenAI Response Body: " + response.body());
+
             if (response.statusCode() == 200) {
-                // Basic parsing for now, assuming response is like: {"choices": [{"message": {"content": "advice"}}]}
-                // A proper JSON library would be much better here.
                 String responseBody = response.body();
                 String adviceFromAI = parseAdviceFromOpenAIResponse(responseBody);
 
                 if (adviceFromAI == null || adviceFromAI.isEmpty()) {
+                    System.err.println("AIService: Failed to parse advice from OpenAI response or advice was empty.");
                     adviceFromAI = "AI could not generate advice at this moment. Please try again later.";
+                } else {
+                    System.out.println("AIService: Successfully parsed advice: " + adviceFromAI.substring(0, Math.min(adviceFromAI.length(), 100)) + "..."); // Log first 100 chars
                 }
 
                 user.setAiAdviceCount(currentCount + 1);
