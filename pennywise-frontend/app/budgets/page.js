@@ -366,7 +366,8 @@ export default function BudgetsPage() {
                     <div>
                       <CardTitle className="text-white text-lg mb-2">{budget.category}</CardTitle>
                       <Badge variant="secondary" className="bg-gray-700 text-gray-300">
-                        {new Date(budget.month).toLocaleDateString('en-US', {
+                        {/* Replace hyphens with slashes to ensure date is interpreted in local timezone */}
+                        {new Date(budget.month.replace(/-/g, '/')).toLocaleDateString('en-US', {
                           year: 'numeric', 
                           month: 'long' 
                         })}
