@@ -21,9 +21,9 @@ public class Transaction {
 
     private LocalDate date;
     private String description;
-    private String category; // For simplicity now, could be an entity later
+    private String category;
     private BigDecimal amount;
-    private String type; // "income" or "expense"
+    private String type;
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "user_id", nullable = false)

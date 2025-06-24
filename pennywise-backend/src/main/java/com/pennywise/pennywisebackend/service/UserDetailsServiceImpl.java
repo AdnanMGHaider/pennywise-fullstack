@@ -9,7 +9,7 @@ import org.springframework.security.core.userdetails.UsernameNotFoundException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.util.ArrayList; // For granting authorities if roles were used
+import java.util.ArrayList;
 
 @Service
 public class UserDetailsServiceImpl implements UserDetailsService {
@@ -19,21 +19,13 @@ public class UserDetailsServiceImpl implements UserDetailsService {
 
     @Override
     @Transactional
-    public UserDetails loadUserByUsername(String username) throws UsernameNotFoundException { // Parameter is now the actual username (full name)
-        User user = userRepository.findByUsername(username) // Reverted to find by actual username
+    public UserDetails loadUserByUsername(String username) throws UsernameNotFoundException {
+        User user = userRepository.findByUsername(username)
                 .orElseThrow(() -> new UsernameNotFoundException("User Not Found with username: " + username));
-
-        // For now, we are not using roles/authorities. If roles were implemented,
-        // they would be mapped to GrantedAuthority objects here.
-        // Example:
-        // Set<GrantedAuthority> authorities = user.getRoles().stream()
-        // .map(role -> new SimpleGrantedAuthority(role.getName().name()))
-        // .collect(Collectors.toSet());
 
         return new org.springframework.security.core.userdetails.User(
                 user.getUsername(),
                 user.getPassword(),
-                new ArrayList<>() // Empty list of authorities
-        );
+                new ArrayList<>());
     }
 }

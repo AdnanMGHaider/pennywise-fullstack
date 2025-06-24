@@ -29,7 +29,6 @@ public class CategoryService {
     }
 
     public Category saveCategory(Category category) {
-        // Check if category with the same name already exists
         Optional<Category> existingCategory = categoryRepository.findByName(category.getName());
         if (existingCategory.isPresent()) {
             throw new RuntimeException("Category with name '" + category.getName() + "' already exists.");
@@ -41,14 +40,13 @@ public class CategoryService {
         Category category = categoryRepository.findById(id)
                 .orElseThrow(() -> new RuntimeException("Category not found with id: " + id));
 
-        // Check if new name conflicts with another existing category
         Optional<Category> existingCategoryWithName = categoryRepository.findByName(categoryDetails.getName());
         if (existingCategoryWithName.isPresent() && !existingCategoryWithName.get().getId().equals(id)) {
-             throw new RuntimeException("Another category with name '" + categoryDetails.getName() + "' already exists.");
+            throw new RuntimeException(
+                    "Another category with name '" + categoryDetails.getName() + "' already exists.");
         }
 
         category.setName(categoryDetails.getName());
-        // category.setType(categoryDetails.getType()); // If type is part of Category
         return categoryRepository.save(category);
     }
 
@@ -56,8 +54,6 @@ public class CategoryService {
         if (!categoryRepository.existsById(id)) {
             throw new RuntimeException("Category not found with id: " + id);
         }
-        // Add logic here to check if category is in use by transactions/budgets before deleting
-        // For now, direct delete:
         categoryRepository.deleteById(id);
     }
 }

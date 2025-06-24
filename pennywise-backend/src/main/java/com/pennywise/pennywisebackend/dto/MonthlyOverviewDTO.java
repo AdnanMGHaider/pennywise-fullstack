@@ -10,9 +10,9 @@ import java.math.BigDecimal;
 @NoArgsConstructor
 @AllArgsConstructor
 public class MonthlyOverviewDTO {
-    private String currentMonthYearString; // e.g., "July 2024"
+    private String currentMonthYearString;
     private BigDecimal totalIncome;
     private BigDecimal totalExpenses;
     private BigDecimal netIncome;
-    private BigDecimal savingsRate; // As a percentage, e.g., 15.5 for 15.5%
+    private BigDecimal savingsRate;
 }

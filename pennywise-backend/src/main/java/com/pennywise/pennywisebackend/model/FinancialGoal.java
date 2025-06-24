@@ -23,10 +23,5 @@ public class FinancialGoal {
     private BigDecimal targetAmount;
     private BigDecimal currentAmount;
     private LocalDate deadline;
-    private String category; // e.g., "Savings", "Travel"
-
-    // Consider adding a User relationship
-    // @ManyToOne
-    // @JoinColumn(name = "user_id")
-    // private User user;
+    private String category;
 }

@@ -25,7 +25,6 @@ public class FinancialGoalService {
     }
 
     public FinancialGoal saveFinancialGoal(FinancialGoal financialGoal) {
-        // Add any specific business logic before saving, e.g., validation
         return financialGoalRepository.save(financialGoal);
     }
 

@@ -14,15 +14,14 @@ import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.bind.annotation.CrossOrigin;
 
 @RestController
-@RequestMapping("/api/dashboard/ai-advice") // Or /api/ai/advice
+@RequestMapping("/api/dashboard/ai-advice")
 @RequiredArgsConstructor
-@CrossOrigin(origins = "*") // Allow all origins for now, adjust as needed for production
+@CrossOrigin(origins = "*")
 public class AIController {
 
     private final AIService aiService;
-    private final UserRepository userRepository; // To get User object from username
+    private final UserRepository userRepository;
 
-    // Helper method to get current authenticated user's ID
     private Long getCurrentUserId() {
         Object principal = SecurityContextHolder.getContext().getAuthentication().getPrincipal();
         String username;
@@ -32,7 +31,8 @@ public class AIController {
             username = principal.toString();
         }
         User user = userRepository.findByUsername(username)
-                .orElseThrow(() -> new RuntimeException("User not found in database. This should not happen if authenticated."));
+                .orElseThrow(() -> new RuntimeException(
+                        "User not found in database. This should not happen if authenticated."));
         return user.getId();
     }
 

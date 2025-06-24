@@ -26,20 +26,13 @@ public class User {
     private String username;
 
     @Column(nullable = false)
-    private String password; // This will store the BCrypt-encoded password
+    private String password;
 
     @Column(nullable = false, unique = true)
     private String email;
 
     @Column(name = "ai_advice_count", nullable = false, columnDefinition = "INT DEFAULT 0")
     private Integer aiAdviceCount = 0;
-
-    // Future consideration: Roles for more fine-grained authorization
-    // @ManyToMany(fetch = FetchType.LAZY)
-    // @JoinTable(name = "user_roles",
-    // joinColumns = @JoinColumn(name = "user_id"),
-    // inverseJoinColumns = @JoinColumn(name = "role_id"))
-    // private Set<Role> roles = new HashSet<>();
 
     public User(String username, String email, String password) {
         this.username = username;

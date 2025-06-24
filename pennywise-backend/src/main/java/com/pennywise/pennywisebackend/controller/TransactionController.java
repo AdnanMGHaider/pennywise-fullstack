@@ -14,7 +14,7 @@ import java.util.List;
 @RestController
 @RequestMapping("/api/transactions")
 @RequiredArgsConstructor
-@CrossOrigin(origins = "*") // Allow all origins for now, configure properly for prod
+@CrossOrigin(origins = "*")
 public class TransactionController {
 
     private final TransactionService transactionService;
@@ -27,9 +27,9 @@ public class TransactionController {
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate startDate,
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate endDate) {
 
-        // Basic filtering logic, can be expanded in service layer
         if (category != null || type != null || descriptionKeyword != null || (startDate != null && endDate != null)) {
-            return ResponseEntity.ok(transactionService.filterTransactions(category, type, descriptionKeyword, startDate, endDate));
+            return ResponseEntity
+                    .ok(transactionService.filterTransactions(category, type, descriptionKeyword, startDate, endDate));
         }
         return ResponseEntity.ok(transactionService.getAllTransactions());
     }
@@ -47,12 +47,13 @@ public class TransactionController {
             Transaction createdTransaction = transactionService.saveTransaction(transaction);
             return ResponseEntity.status(HttpStatus.CREATED).body(createdTransaction);
         } catch (IllegalArgumentException e) {
-            return ResponseEntity.badRequest().build(); // Or return error message
+            return ResponseEntity.badRequest().build();
         }
     }
 
     @PutMapping("/{id}")
-    public ResponseEntity<Transaction> updateTransaction(@PathVariable Long id, @RequestBody Transaction transactionDetails) {
+    public ResponseEntity<Transaction> updateTransaction(@PathVariable Long id,
+            @RequestBody Transaction transactionDetails) {
         try {
             Transaction updatedTransaction = transactionService.updateTransaction(id, transactionDetails);
             return ResponseEntity.ok(updatedTransaction);
@@ -60,7 +61,7 @@ public class TransactionController {
             if (e.getMessage().contains("not found")) {
                 return ResponseEntity.notFound().build();
             }
-            return ResponseEntity.badRequest().build(); // Or return error message for other errors like IllegalArgumentException
+            return ResponseEntity.badRequest().build();
         }
     }
 
@@ -70,7 +71,6 @@ public class TransactionController {
             transactionService.deleteTransaction(id);
             return ResponseEntity.noContent().build();
         } catch (RuntimeException e) {
-            // Handle cases like transaction not found
             return ResponseEntity.notFound().build();
         }
     }

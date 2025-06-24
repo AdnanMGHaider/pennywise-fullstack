@@ -12,7 +12,7 @@ import java.util.List;
 @RestController
 @RequestMapping("/api/categories")
 @RequiredArgsConstructor
-@CrossOrigin(origins = "*") // Allow all origins for now
+@CrossOrigin(origins = "*")
 public class CategoryController {
 
     private final CategoryService categoryService;
@@ -62,13 +62,10 @@ public class CategoryController {
     @DeleteMapping("/{id}")
     public ResponseEntity<Void> deleteCategory(@PathVariable Long id) {
         try {
-            // Consider implications: what if category is in use?
-            // Service layer should ideally handle this logic.
             categoryService.deleteCategory(id);
             return ResponseEntity.noContent().build();
         } catch (RuntimeException e) {
-            // Handle category not found or other errors (e.g., category in use)
-            return ResponseEntity.status(HttpStatus.CONFLICT).build(); // Or specific error
+            return ResponseEntity.status(HttpStatus.CONFLICT).build();
         }
     }
 }

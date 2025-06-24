@@ -17,8 +17,8 @@ import java.io.IOException;
 import java.time.LocalDate;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import java.util.List; // For checking transaction list size
-import java.util.Map; // For structured response
+import java.util.List;
+import java.util.Map;
 
 @Service
 @RequiredArgsConstructor
@@ -26,14 +26,14 @@ public class AIService {
 
     private final UserRepository userRepository;
     private final TransactionRepository transactionRepository;
-    private final DashboardService dashboardService; // For fetching financial summary
+    private final DashboardService dashboardService;
 
     @Value("${openai.api.key}")
     private String openaiApiKey;
 
     private static final String OPENAI_API_URL = "https://api.openai.com/v1/chat/completions";
     private final HttpClient httpClient = HttpClient.newHttpClient();
-    private final ObjectMapper objectMapper = new ObjectMapper(); // Jackson's ObjectMapper
+    private final ObjectMapper objectMapper = new ObjectMapper();
 
     @Transactional
     public Map<String, Object> generateAiAdviceForUser(Long userId) {
@@ -46,30 +46,26 @@ public class AIService {
         }
 
         if (!hasSufficientData(userId)) {
-            return Map.of("error", "Not enough financial data to generate advice. Please add some income and expense transactions.",
-                          "generationsLeft", 3 - currentCount);
+            return Map.of("error",
+                    "Not enough financial data to generate advice. Please add some income and expense transactions.",
+                    "generationsLeft", 3 - currentCount);
         }
 
-        // TODO:
-        // 4. Construct prompt for OpenAI
-        // String prompt = constructPrompt(userId /* or user summary data */);
         String prompt = constructPromptForUser(userId);
 
         try {
-            // System.out.println("AIService: Attempting to generate AI advice for userId: " + userId); // Reduced verbosity
 
-            if (openaiApiKey == null || openaiApiKey.isEmpty() || openaiApiKey.equals("YOUR_OPENAI_API_KEY_PLACEHOLDER")) {
-                System.err.println("AIService: OpenAI API Key is missing or is a placeholder. Cannot generate AI advice.");
-                return Map.of("error", "AI service not configured by administrator (API key missing).", "generationsLeft", 3 - currentCount);
+            if (openaiApiKey == null || openaiApiKey.isEmpty()
+                    || openaiApiKey.equals("YOUR_OPENAI_API_KEY_PLACEHOLDER")) {
+                System.err.println(
+                        "AIService: OpenAI API Key is missing or is a placeholder. Cannot generate AI advice.");
+                return Map.of("error", "AI service not configured by administrator (API key missing).",
+                        "generationsLeft", 3 - currentCount);
             }
-            // Optional: Log masked key once on service startup or less frequently if needed for debugging deployment.
-            // else {
-            //     String maskedApiKey = openaiApiKey.length() > 8 ? openaiApiKey.substring(0, 5) + "..." + openaiApiKey.substring(openaiApiKey.length() - 4) : "API Key (short)";
-            //     System.out.println("AIService: OpenAI API Key loaded (masked): " + maskedApiKey);
-            // }
 
-            String requestBody = String.format("{\"model\": \"gpt-3.5-turbo\", \"messages\": [{\"role\": \"user\", \"content\": \"%s\"}], \"max_tokens\": 200}", escapeJson(prompt));
-            // System.out.println("AIService: OpenAI Request Body: " + requestBody); // Reduced verbosity
+            String requestBody = String.format(
+                    "{\"model\": \"gpt-3.5-turbo\", \"messages\": [{\"role\": \"user\", \"content\": \"%s\"}], \"max_tokens\": 200}",
+                    escapeJson(prompt));
 
             HttpRequest request = HttpRequest.newBuilder()
                     .uri(URI.create(OPENAI_API_URL))
@@ -80,49 +76,48 @@ public class AIService {
 
             HttpResponse<String> response = httpClient.send(request, HttpResponse.BodyHandlers.ofString());
 
-            // System.out.println("AIService: OpenAI Response Status Code: " + response.statusCode()); // Reduced verbosity
-            // System.out.println("AIService: OpenAI Response Body: " + response.body()); // Reduced verbosity - only log on error
-
             if (response.statusCode() == 200) {
                 String responseBody = response.body();
                 String adviceFromAI = parseAdviceFromOpenAIResponse(responseBody);
 
                 if (adviceFromAI != null && !adviceFromAI.isEmpty()) {
-                    // System.out.println("AIService: Successfully parsed advice."); // Reduced verbosity
-                    user.setAiAdviceCount(currentCount + 1); // Increment count only on successful advice
+                    user.setAiAdviceCount(currentCount + 1);
                     userRepository.save(user);
                     return Map.of("advice", adviceFromAI, "generationsLeft", 3 - user.getAiAdviceCount());
                 } else {
-                    System.err.println("AIService: Failed to parse advice from OpenAI response (body was: " + responseBody.substring(0, Math.min(responseBody.length(), 500)) + "...). Count not incremented.");
+                    System.err.println("AIService: Failed to parse advice from OpenAI response (body was: "
+                            + responseBody.substring(0, Math.min(responseBody.length(), 500))
+                            + "...). Count not incremented.");
                     return Map.of("error", "AI could not extract advice at this moment. Please try again later.",
-                                  "generationsLeft", 3 - currentCount);
+                            "generationsLeft", 3 - currentCount);
                 }
             } else {
-                System.err.println("OpenAI API Error - Status: " + response.statusCode() + ", Body: " + response.body().substring(0, Math.min(response.body().length(), 500)) + "...");
+                System.err.println("OpenAI API Error - Status: " + response.statusCode() + ", Body: "
+                        + response.body().substring(0, Math.min(response.body().length(), 500)) + "...");
                 return Map.of("error", "Failed to get advice from AI service (Status: " + response.statusCode() + ").",
-                              "generationsLeft", 3 - currentCount);
+                        "generationsLeft", 3 - currentCount);
             }
 
         } catch (IOException | InterruptedException e) {
-            Thread.currentThread().interrupt(); // Restore interrupt status
+            Thread.currentThread().interrupt();
             System.err.println("AIService: Error calling OpenAI API: " + e.getMessage());
             return Map.of("error", "Error communicating with AI service.", "generationsLeft", 3 - currentCount);
-        } catch (Exception e) { // Catch other potential exceptions like from JSON parsing
+        } catch (Exception e) {
             System.err.println("AIService: Unexpected error during AI advice generation: " + e.getMessage());
-            e.printStackTrace(); // Log stack trace for unexpected errors
-            return Map.of("error", "An unexpected error occurred while generating advice.", "generationsLeft", 3 - currentCount);
+            e.printStackTrace();
+            return Map.of("error", "An unexpected error occurred while generating advice.", "generationsLeft",
+                    3 - currentCount);
         }
     }
 
     private String escapeJson(String raw) {
-        // Basic escaping for JSON string values. For complex objects, a JSON library's serialization is preferred.
         return raw.replace("\\", "\\\\")
-                  .replace("\"", "\\\"")
-                  .replace("\b", "\\b")
-                  .replace("\f", "\\f")
-                  .replace("\n", "\\n")
-                  .replace("\r", "\\r")
-                  .replace("\t", "\\t");
+                .replace("\"", "\\\"")
+                .replace("\b", "\\b")
+                .replace("\f", "\\f")
+                .replace("\n", "\\n")
+                .replace("\r", "\\r")
+                .replace("\t", "\\t");
     }
 
     private String parseAdviceFromOpenAIResponse(String responseBody) {
@@ -146,41 +141,39 @@ public class AIService {
     }
 
     private boolean hasSufficientData(Long userId) {
-        // Check if user has at least 1 income and 1 expense transaction
-        // Note: findByUserIdAndType returns List<Transaction>. We check if the list is not empty.
-        List<com.pennywise.pennywisebackend.model.Transaction> incomeTransactions = transactionRepository.findByUserIdAndType(userId, "income");
-        List<com.pennywise.pennywisebackend.model.Transaction> expenseTransactions = transactionRepository.findByUserIdAndType(userId, "expense");
+        List<com.pennywise.pennywisebackend.model.Transaction> incomeTransactions = transactionRepository
+                .findByUserIdAndType(userId, "income");
+        List<com.pennywise.pennywisebackend.model.Transaction> expenseTransactions = transactionRepository
+                .findByUserIdAndType(userId, "expense");
 
         return !incomeTransactions.isEmpty() && !expenseTransactions.isEmpty();
     }
 
     private String constructPromptForUser(Long userId) {
-        // Fetch a summary of the user's financial data for the current month
-        // The getDashboardSummary now returns monthly income/expenses and other relevant data.
-        DashboardSummaryDTO summary = dashboardService.getDashboardSummary(LocalDate.now()); // Pass current user via security context in dashboardService
+        DashboardSummaryDTO summary = dashboardService.getDashboardSummary(LocalDate.now());
 
-        // Construct a detailed prompt
         StringBuilder promptBuilder = new StringBuilder();
-        promptBuilder.append("You are a financial advisor. Analyze the following specific financial data for a user and provide three distinct, actionable financial advice bullet points. ");
-        promptBuilder.append("Each piece of advice MUST directly relate to and reference the provided figures where appropriate. Aim for concrete suggestions.\n\n");
+        promptBuilder.append(
+                "You are a financial advisor. Analyze the following specific financial data for a user and provide three distinct, actionable financial advice bullet points. ");
+        promptBuilder.append(
+                "Each piece of advice MUST directly relate to and reference the provided figures where appropriate. Aim for concrete suggestions.\n\n");
 
         promptBuilder.append("User's Financial Data (Current Month):\n");
         promptBuilder.append(String.format("- Monthly Income: $%.2f\n", summary.getTotalIncome()));
         promptBuilder.append(String.format("- Monthly Expenses: $%.2f\n", summary.getTotalExpenses()));
 
-        // Calculate and include Net Monthly Cash Flow
         java.math.BigDecimal netMonthlyCashFlow = summary.getTotalIncome().subtract(summary.getTotalExpenses());
         promptBuilder.append(String.format("- Net Monthly Cash Flow: $%.2f\n", netMonthlyCashFlow));
 
         promptBuilder.append(String.format("- Savings Rate: %.1f%%\n", summary.getSavingsRate()));
         promptBuilder.append(String.format("- Lifetime Net Worth: $%.2f\n", summary.getNetWorth()));
-        if (summary.getNetWorthChangePercentage() != null) { // Check if NetWorthChangePercentage itself is null
-             promptBuilder.append(String.format("- Net Worth Month-over-Month Change: %.1f%%\n", summary.getNetWorthChangePercentage()));
+        if (summary.getNetWorthChangePercentage() != null) {
+            promptBuilder.append(String.format("- Net Worth Month-over-Month Change: %.1f%%\n",
+                    summary.getNetWorthChangePercentage()));
         }
-        // TODO: Consider fetching top 2-3 expense categories for more specific advice if easily available
-        // e.g., promptBuilder.append(String.format("- Top Expense: Food $%.2f\n", topFoodExpense));
 
-        promptBuilder.append("\nBased *specifically* on these numbers, provide your three bullet points of advice below. For example, if income is $5000 and expenses are $4500 (leaving $500 net cash flow), and savings rate is 10%, you might suggest ways to increase that $500 or reduce specific (if known) expenses. If Net Worth MoM change is negative, address potential reasons or concerns.\n");
+        promptBuilder.append(
+                "\nBased *specifically* on these numbers, provide your three bullet points of advice below. For example, if income is $5000 and expenses are $4500 (leaving $500 net cash flow), and savings rate is 10%, you might suggest ways to increase that $500 or reduce specific (if known) expenses. If Net Worth MoM change is negative, address potential reasons or concerns.\n");
         promptBuilder.append("Requested Advice (exactly three bullet points directly referencing the data above):\n");
         promptBuilder.append("- [Advice point 1 related to the user's specific data]\n");
         promptBuilder.append("- [Advice point 2 related to the user's specific data]\n");

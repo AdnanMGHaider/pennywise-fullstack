@@ -17,8 +17,6 @@ public class JwtUtil {
 
     private static final Logger logger = LoggerFactory.getLogger(JwtUtil.class);
 
-    // It's highly recommended to move these to application.properties
-    // and make the secret key much more complex and secure.
     @Value("${app.jwt.secret}")
     private String jwtSecret;
 

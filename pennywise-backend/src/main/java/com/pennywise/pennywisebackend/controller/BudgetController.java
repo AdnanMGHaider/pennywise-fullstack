@@ -1,8 +1,6 @@
 package com.pennywise.pennywisebackend.controller;
 
-// Correcting the import for BudgetDTO
-import com.pennywise.pennywisebackend.dto.BudgetDTO; // If BudgetDTO is in service package
-// Or if you decide to move it to a dto package: import com.pennywise.pennywisebackend.dto.BudgetDTO;
+import com.pennywise.pennywisebackend.dto.BudgetDTO;
 
 import com.pennywise.pennywisebackend.model.Budget;
 import com.pennywise.pennywisebackend.service.BudgetService;
@@ -19,7 +17,7 @@ import java.util.List;
 @RestController
 @RequestMapping("/api/budgets")
 @RequiredArgsConstructor
-@CrossOrigin(origins = "*") // Allow all origins for now
+@CrossOrigin(origins = "*")
 public class BudgetController {
 
     private final BudgetService budgetService;
@@ -40,7 +38,6 @@ public class BudgetController {
                 .orElse(ResponseEntity.notFound().build());
     }
 
-    // Example: Get specific budget by category and month
     @GetMapping("/category-month")
     public ResponseEntity<BudgetDTO> getBudgetByCategoryAndMonth(
             @RequestParam String category,
@@ -52,15 +49,8 @@ public class BudgetController {
 
     @PostMapping
     public ResponseEntity<?> createBudget(@RequestBody Budget budget) {
-        // Frontend sends month as YYYY-MM, backend model uses LocalDate (first day of
-        // month)
-        // This should be handled: either expect LocalDate or convert YYYY-MM string
-        // here or in service
-        // Assuming budget object from request body has month correctly set or will be
-        // set in service
         try {
             Budget createdBudget = budgetService.saveBudget(budget);
-            // We should return BudgetDTO if frontend expects spentAmount immediately
             BudgetDTO resultDTO = budgetService.getBudgetById(createdBudget.getId())
                     .orElseThrow(() -> new RuntimeException("Failed to fetch created budget as DTO"));
             return ResponseEntity.status(HttpStatus.CREATED).body(resultDTO);

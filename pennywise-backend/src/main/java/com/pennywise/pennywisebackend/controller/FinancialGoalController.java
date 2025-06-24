@@ -12,7 +12,7 @@ import java.util.List;
 @RestController
 @RequestMapping("/api/goals")
 @RequiredArgsConstructor
-@CrossOrigin(origins = "*") // Allow all origins for now
+@CrossOrigin(origins = "*")
 public class FinancialGoalController {
 
     private final FinancialGoalService financialGoalService;
@@ -36,12 +36,12 @@ public class FinancialGoalController {
     }
 
     @PutMapping("/{id}")
-    public ResponseEntity<FinancialGoal> updateFinancialGoal(@PathVariable Long id, @RequestBody FinancialGoal goalDetails) {
+    public ResponseEntity<FinancialGoal> updateFinancialGoal(@PathVariable Long id,
+            @RequestBody FinancialGoal goalDetails) {
         try {
             FinancialGoal updatedGoal = financialGoalService.updateFinancialGoal(id, goalDetails);
             return ResponseEntity.ok(updatedGoal);
         } catch (RuntimeException e) {
-            // Handle goal not found or other errors
             return ResponseEntity.notFound().build();
         }
     }
@@ -52,7 +52,6 @@ public class FinancialGoalController {
             financialGoalService.deleteFinancialGoal(id);
             return ResponseEntity.noContent().build();
         } catch (RuntimeException e) {
-            // Handle goal not found
             return ResponseEntity.notFound().build();
         }
     }

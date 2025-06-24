@@ -15,5 +15,5 @@ public class BudgetDTO {
     private String category;
     private BigDecimal budgetAmount;
     private BigDecimal spentAmount;
-    private LocalDate month; // First day of the month
+    private LocalDate month;
 }
