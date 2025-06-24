@@ -31,6 +31,9 @@ public class User {
     @Column(nullable = false, unique = true)
     private String email;
 
+    @Column(name = "ai_advice_count", nullable = false, columnDefinition = "INT DEFAULT 0")
+    private Integer aiAdviceCount = 0;
+
     // Future consideration: Roles for more fine-grained authorization
     // @ManyToMany(fetch = FetchType.LAZY)
     // @JoinTable(name = "user_roles",

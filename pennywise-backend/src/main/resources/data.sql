@@ -1,6 +1,7 @@
 -- Sample User
 -- Password for 'testuser' is 'password123' (BCrypt encoded)
-INSERT INTO users (username, email, password) VALUES ('testuser', 'testuser@example.com', '$2a$10$N9qo8uLOickgx2ZMRZoMyeIjZAgcfl7p92ldGxad68LJZdL17lhWy');
+-- Added ai_advice_count with a default of 0 for the test user
+INSERT INTO users (username, email, password, ai_advice_count) VALUES ('testuser', 'testuser@example.com', '$2a$10$N9qo8uLOickgx2ZMRZoMyeIjZAgcfl7p92ldGxad68LJZdL17lhWy', 0);
 
 -- Default Categories
 INSERT INTO categories (name) VALUES ('Food');

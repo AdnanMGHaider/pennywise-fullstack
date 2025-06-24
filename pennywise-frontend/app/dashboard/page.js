@@ -14,7 +14,7 @@ import {
   ArrowUpRight,
   ArrowDownRight,
 } from "lucide-react";
-import { mockTransactions, mockMonthlyData, aiAdviceTemplates } from '@/data/mockData';
+// import { mockTransactions, mockMonthlyData, aiAdviceTemplates } from '@/data/mockData'; // No longer needed for AI advice
 import { useRefresh } from "@/contexts/RefreshContext"; // Import useRefresh
 import { useAuth } from "@/contexts/AuthContext";
 import { Doughnut, Line } from "react-chartjs-2";
@@ -65,20 +65,65 @@ export default function DashboardPage() {
     datasets: [],
   });
   const [isLoading, setIsLoading] = useState(true);
-  const [aiAdvice, setAiAdvice] = useState(""); // AI Advice remains client-side for now
+  const [aiAdvice, setAiAdvice] = useState("");
   const [isGeneratingAdvice, setIsGeneratingAdvice] = useState(false);
+  const [adviceGenerationsLeft, setAdviceGenerationsLeft] = useState(3); // Initial assumption
+  const [aiMessage, setAiMessage] = useState("You can generate AI financial advice up to 3 times in this demo."); // Initial message
+
   const { refreshKey } = useRefresh(); // Get refreshKey from context
   const { token } = useAuth();
 
-  function generateAIAdvice() {
+  // Updated generateAIAdvice function will be here later
+  async function generateAIAdvice() {
+    if (adviceGenerationsLeft <= 0) {
+      setAiMessage("You've used all your AI advice generations for this demo.");
+      setAiAdvice(""); // Clear any previous advice
+      return;
+    }
+
     setIsGeneratingAdvice(true);
-    setTimeout(() => {
-      setAiAdvice(
-        aiAdviceTemplates[Math.floor(Math.random() * aiAdviceTemplates.length)]
-      );
+    setAiAdvice(""); // Clear previous advice
+    setAiMessage(""); // Clear previous messages
+
+    try {
+      const authHeaders = token ? { Authorization: `Bearer ${token}` } : {};
+      const response = await fetch(`${API_URL}/dashboard/ai-advice`, {
+        method: 'POST',
+        headers: authHeaders,
+      });
+
+      if (!response.ok) {
+        // Try to parse error from backend
+        const errorData = await response.json().catch(() => ({ message: "Failed to generate advice. Please try again." }));
+        throw new Error(errorData.message || `Server error: ${response.status}`);
+      }
+
+      const data = await response.json(); // Expected: { advice?: string, error?: string, generationsLeft: number }
+
+      if (data.error) {
+        setAiMessage(data.error);
+        setAiAdvice("");
+      } else if (data.advice) {
+        setAiAdvice(data.advice);
+        setAiMessage(""); // Clear messages if advice is shown
+      }
+
+      if (typeof data.generationsLeft === 'number') {
+        setAdviceGenerationsLeft(data.generationsLeft);
+        if (data.generationsLeft <= 0) {
+          setAiMessage("You've used all your AI advice generations for this demo.");
+        }
+      }
+
+    } catch (error) {
+      console.error("Error generating AI advice:", error);
+      setAiMessage(error.message || "An unexpected error occurred while generating advice.");
+      setAiAdvice("");
+    } finally {
       setIsGeneratingAdvice(false);
-    }, 2000);
+    }
   }
+
 
   useEffect(() => {
     if (!token) return;
@@ -426,8 +471,8 @@ export default function DashboardPage() {
               </div>
               <Button
                 onClick={generateAIAdvice}
-                disabled={isGeneratingAdvice}
-                className="bg-gradient-to-r from-purple-500 to-violet-600 hover:from-purple-600 hover:to-violet-700"
+                disabled={isGeneratingAdvice || adviceGenerationsLeft <= 0}
+                className="bg-gradient-to-r from-purple-500 to-violet-600 hover:from-purple-600 hover:to-violet-700 disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 {isGeneratingAdvice ? (
                   <>
@@ -439,17 +484,27 @@ export default function DashboardPage() {
                 )}
               </Button>
             </div>
+            {adviceGenerationsLeft > 0 && !isGeneratingAdvice && (
+              <p className="text-xs text-gray-400 text-right mt-1 pr-6">
+                {adviceGenerationsLeft} generation{adviceGenerationsLeft === 1 ? '' : 's'} left
+              </p>
+            )}
+             {(adviceGenerationsLeft <= 0 && !isGeneratingAdvice) && (
+              <p className="text-xs text-red-400 text-right mt-1 pr-6">
+                No generations left
+              </p>
+            )}
           </CardHeader>
           <CardContent>
             {aiAdvice ? (
               <div className="p-4 bg-gradient-to-r from-purple-500/10 to-violet-600/10 rounded-lg border border-purple-500/20">
-                <p className="text-gray-200">{aiAdvice}</p>
+                <p className="text-gray-200 whitespace-pre-line">{aiAdvice}</p> {/* Added whitespace-pre-line */}
               </div>
             ) : (
               <div className="text-center py-8">
                 <Zap className="w-12 h-12 text-gray-600 mx-auto mb-4" />
                 <p className="text-gray-400 mb-4">
-                  Click "Generate Advice" to get personalized financial recommendations using AI.
+                  {aiMessage || "Click \"Generate Advice\" to get personalized financial recommendations using AI."}
                 </p>
               </div>
             )}
