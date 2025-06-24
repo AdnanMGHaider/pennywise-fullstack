@@ -32,11 +32,10 @@ import {
   ArrowUpRight,
   ArrowDownLeft,
 } from "lucide-react";
-// Remove mock data import for transactions
-// import { mockTransactions as initialTransactions, categories } from '@/data/mockData';
+
 import { toast } from "sonner";
 import { useAuth } from "@/contexts/AuthContext";
-import { useRefresh } from "@/contexts/RefreshContext"; // Import useRefresh
+import { useRefresh } from "@/contexts/RefreshContext";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8080/api";
 
@@ -45,7 +44,7 @@ export default function TransactionsPage() {
   const authHeaders = token ? { Authorization: `Bearer ${token}` } : {};
   const [transactions, setTransactions] = useState([]);
   const [filteredTransactions, setFilteredTransactions] = useState([]);
-  const [categories, setCategories] = useState([]); // To be fetched from backend
+  const [categories, setCategories] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
@@ -53,7 +52,7 @@ export default function TransactionsPage() {
   const [searchTerm, setSearchTerm] = useState("");
   const [filterCategory, setFilterCategory] = useState("all");
   const [filterType, setFilterType] = useState("all");
-  const { triggerRefresh } = useRefresh(); // Get triggerRefresh from context
+  const { triggerRefresh } = useRefresh();
 
   // Form state
   const [formData, setFormData] = useState({
@@ -64,7 +63,6 @@ export default function TransactionsPage() {
     type: "expense",
   });
 
-  // Fetch transactions and categories from backend
   useEffect(() => {
     const fetchData = async () => {
       const authHeaders = token ? { Authorization: `Bearer ${token}` } : {};
@@ -83,8 +81,8 @@ export default function TransactionsPage() {
         const categoriesData = await categoriesRes.json();
 
         setTransactions(transactionsData);
-        setFilteredTransactions(transactionsData); // Initialize filtered with all transactions
-        setCategories(categoriesData.map((c) => c.name)); // Assuming category objects have a 'name' field
+        setFilteredTransactions(transactionsData);
+        setCategories(categoriesData.map((c) => c.name));
       } catch (error) {
         toast.error(`Error fetching data: ${error.message}`);
         console.error("Fetch error:", error);
@@ -118,9 +116,7 @@ export default function TransactionsPage() {
     setFilteredTransactions(filtered);
   };
 
-  // Apply filters whenever search term or filters change
   useEffect(() => {
-    // Changed useState to useEffect here as it seems to be the intent
     applyFilters();
   }, [searchTerm, filterCategory, filterType, transactions]);
 
@@ -130,12 +126,9 @@ export default function TransactionsPage() {
       return;
     }
 
-    // The backend expects amount to be signed based on type already.
-    // The service layer handles making it negative for expenses.
-    // So, send the absolute amount and let backend determine sign.
     const transactionData = {
       ...formData,
-      amount: parseFloat(formData.amount), // Ensure amount is a number
+      amount: parseFloat(formData.amount),
     };
 
     try {
@@ -161,7 +154,7 @@ export default function TransactionsPage() {
       });
       setIsAddModalOpen(false);
       toast.success("Transaction added successfully");
-      triggerRefresh(); // Trigger refresh
+      triggerRefresh();
     } catch (error) {
       toast.error(`Error: ${error.message}`);
       console.error("Add transaction error:", error);
@@ -180,8 +173,8 @@ export default function TransactionsPage() {
     }
 
     const transactionData = {
-      ...formData, // This includes date, description, category, type
-      amount: parseFloat(formData.amount), // Backend service handles sign based on type
+      ...formData,
+      amount: parseFloat(formData.amount),
     };
 
     try {
@@ -208,7 +201,7 @@ export default function TransactionsPage() {
       setIsEditModalOpen(false);
       setEditingTransaction(null);
       toast.success("Transaction updated successfully");
-      triggerRefresh(); // Trigger refresh
+      triggerRefresh();
     } catch (error) {
       toast.error(`Error: ${error.message}`);
       console.error("Update transaction error:", error);
@@ -223,20 +216,17 @@ export default function TransactionsPage() {
       });
 
       if (!response.ok) {
-        // Handle cases where response might not have JSON body (e.g. 404)
         let errorMessage = `Failed to delete transaction. Status: ${response.status}`;
         try {
           const errorData = await response.json();
           errorMessage = errorData.message || errorMessage;
-        } catch (e) {
-          // Ignore if response body is not JSON
-        }
+        } catch (e) {}
         throw new Error(errorMessage);
       }
 
       setTransactions(transactions.filter((t) => t.id !== id));
       toast.success("Transaction deleted successfully");
-      triggerRefresh(); // Trigger refresh
+      triggerRefresh();
     } catch (error) {
       toast.error(`Error: ${error.message}`);
       console.error("Delete transaction error:", error);
@@ -255,8 +245,6 @@ export default function TransactionsPage() {
     setIsEditModalOpen(true);
   };
 
-  // Apply filters whenever dependencies change
-  // This was previously `useState`, changed to `useEffect` as it's a side effect based on state changes.
   useEffect(() => {
     applyFilters();
   }, [searchTerm, filterCategory, filterType, transactions]);

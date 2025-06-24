@@ -4,7 +4,6 @@ import { useState, useEffect } from "react";
 import DashboardLayout from "@/components/layout/DashboardLayout";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-// import { Progress } from "@/components/ui/progress"; // Removed unused import
 import {
   DollarSign,
   TrendingUp,
@@ -14,8 +13,8 @@ import {
   ArrowUpRight,
   ArrowDownRight,
 } from "lucide-react";
-// import { mockTransactions, mockMonthlyData, aiAdviceTemplates } from '@/data/mockData'; // No longer needed for AI advice
-import { useRefresh } from "@/contexts/RefreshContext"; // Import useRefresh
+
+import { useRefresh } from "@/contexts/RefreshContext";
 import { useAuth } from "@/contexts/AuthContext";
 import { Doughnut, Line } from "react-chartjs-2";
 import {
@@ -42,7 +41,7 @@ ChartJS.register(
 );
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8080/api";
-// Helper to get current month in YYYY-MM format
+
 const getCurrentYearMonth = () => new Date().toISOString().slice(0, 7);
 
 export default function DashboardPage() {
@@ -67,115 +66,146 @@ export default function DashboardPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [aiAdvice, setAiAdvice] = useState("");
   const [isGeneratingAdvice, setIsGeneratingAdvice] = useState(false);
-  const [adviceGenerationsLeft, setAdviceGenerationsLeft] = useState(3); // Initial assumption
-  const [aiMessage, setAiMessage] = useState("You can generate AI financial advice up to 3 times in this demo."); // Initial message
+  const [adviceGenerationsLeft, setAdviceGenerationsLeft] = useState(3);
+  const [aiMessage, setAiMessage] = useState(
+    "You can generate AI financial advice up to 3 times in this demo."
+  );
 
-  const { refreshKey } = useRefresh(); // Get refreshKey from context
-  const { token, logout: authLogout } = useAuth(); // Destructure logout as authLogout to avoid naming conflict if any
+  const { refreshKey } = useRefresh();
+  const { token, logout: authLogout } = useAuth();
 
   useEffect(() => {
-    // Sync adviceGenerationsLeft when dashboardSummary.aiGenerationsLeft is available
-    if (typeof dashboardSummary.aiGenerationsLeft === 'number') {
+    if (typeof dashboardSummary.aiGenerationsLeft === "number") {
       setAdviceGenerationsLeft(dashboardSummary.aiGenerationsLeft);
       if (dashboardSummary.aiGenerationsLeft <= 0) {
-        setAiMessage("You've used all your AI advice generations for this demo.");
+        setAiMessage(
+          "You've used all your AI advice generations for this demo."
+        );
         setAiAdvice("");
-      } else if (aiMessage === "You've used all your AI advice generations for this demo." && dashboardSummary.aiGenerationsLeft > 0) {
-        // If summary reloads and shows generations are available again (e.g. admin reset), clear the "no generations left" message
-        setAiMessage("You can generate AI financial advice up to 3 times in this demo.");
+      } else if (
+        aiMessage ===
+          "You've used all your AI advice generations for this demo." &&
+        dashboardSummary.aiGenerationsLeft > 0
+      ) {
+        setAiMessage(
+          "You can generate AI financial advice up to 3 times in this demo."
+        );
       }
     }
   }, [dashboardSummary.aiGenerationsLeft]);
 
-
-  // Updated generateAIAdvice function will be here later
   async function generateAIAdvice() {
     if (adviceGenerationsLeft <= 0) {
       setAiMessage("You've used all your AI advice generations for this demo.");
-      setAiAdvice(""); // Clear any previous advice
+      setAiAdvice("");
       return;
     }
 
     setIsGeneratingAdvice(true);
-    setAiAdvice(""); // Clear previous advice
-    setAiMessage(""); // Clear previous messages
+    setAiAdvice("");
+    setAiMessage("");
 
     try {
       const authHeaders = token ? { Authorization: `Bearer ${token}` } : {};
       const response = await fetch(`${API_URL}/dashboard/ai-advice`, {
-        method: 'POST',
+        method: "POST",
         headers: authHeaders,
       });
 
       if (!response.ok) {
-        // Try to parse error from backend
-        const errorData = await response.json().catch(() => ({ message: "Failed to generate advice. Please try again." }));
-        throw new Error(errorData.message || `Server error: ${response.status}`);
+        const errorData = await response.json().catch(() => ({
+          message: "Failed to generate advice. Please try again.",
+        }));
+        throw new Error(
+          errorData.message || `Server error: ${response.status}`
+        );
       }
 
-      const data = await response.json(); // Expected: { advice?: string, error?: string, generationsLeft: number }
+      const data = await response.json();
 
       if (data.error) {
         setAiMessage(data.error);
         setAiAdvice("");
       } else if (data.advice) {
         setAiAdvice(data.advice);
-        setAiMessage(""); // Clear messages if advice is shown
+        setAiMessage("");
       }
 
-      if (typeof data.generationsLeft === 'number') {
+      if (typeof data.generationsLeft === "number") {
         setAdviceGenerationsLeft(data.generationsLeft);
         if (data.generationsLeft <= 0) {
-          setAiMessage("You've used all your AI advice generations for this demo.");
+          setAiMessage(
+            "You've used all your AI advice generations for this demo."
+          );
         }
       }
-
     } catch (error) {
       console.error("Error generating AI advice:", error);
-      setAiMessage(error.message || "An unexpected error occurred while generating advice.");
+      setAiMessage(
+        error.message || "An unexpected error occurred while generating advice."
+      );
       setAiAdvice("");
     } finally {
       setIsGeneratingAdvice(false);
     }
   }
 
-
   useEffect(() => {
     if (!token) return;
     const fetchDashboardData = async () => {
       setIsLoading(true);
-      console.log("Dashboard fetching data due to refreshKey change:", refreshKey); // For debugging
-        const authHeaders = token ? { Authorization: `Bearer ${token}` } : {};
+      console.log(
+        "Dashboard fetching data due to refreshKey change:",
+        refreshKey
+      );
+      const authHeaders = token ? { Authorization: `Bearer ${token}` } : {};
       try {
         const responses = await Promise.all([
           fetch(`${API_URL}/dashboard/summary`, { headers: authHeaders }),
-          fetch(`${API_URL}/dashboard/expense-breakdown?month=${getCurrentYearMonth()}`, { headers: authHeaders }),
-          fetch(`${API_URL}/dashboard/spending-trends?months=6`, { headers: authHeaders })
+          fetch(
+            `${API_URL}/dashboard/expense-breakdown?month=${getCurrentYearMonth()}`,
+            { headers: authHeaders }
+          ),
+          fetch(`${API_URL}/dashboard/spending-trends?months=6`, {
+            headers: authHeaders,
+          }),
         ]);
 
         const [summaryRes, expenseBreakdownRes, spendingTrendsRes] = responses;
 
-        if (summaryRes.status === 401 || summaryRes.status === 403 ||
-            expenseBreakdownRes.status === 401 || expenseBreakdownRes.status === 403 ||
-            spendingTrendsRes.status === 401 || spendingTrendsRes.status === 403) {
+        if (
+          summaryRes.status === 401 ||
+          summaryRes.status === 403 ||
+          expenseBreakdownRes.status === 401 ||
+          expenseBreakdownRes.status === 403 ||
+          spendingTrendsRes.status === 401 ||
+          spendingTrendsRes.status === 403
+        ) {
           console.error("Auth error fetching dashboard data, logging out.");
           authLogout();
-          // No need to throw another error here, logout will redirect.
-          // setLoading(false) will be handled in finally.
-          return; // Exit early
+
+          return;
         }
 
-        if (!summaryRes.ok) throw new Error(`Failed to fetch dashboard summary (Status: ${summaryRes.status})`);
-        if (!expenseBreakdownRes.ok) throw new Error(`Failed to fetch expense breakdown (Status: ${expenseBreakdownRes.status})`);
-        if (!spendingTrendsRes.ok) throw new Error(`Failed to fetch spending trends (Status: ${spendingTrendsRes.status})`);
+        if (!summaryRes.ok)
+          throw new Error(
+            `Failed to fetch dashboard summary (Status: ${summaryRes.status})`
+          );
+        if (!expenseBreakdownRes.ok)
+          throw new Error(
+            `Failed to fetch expense breakdown (Status: ${expenseBreakdownRes.status})`
+          );
+        if (!spendingTrendsRes.ok)
+          throw new Error(
+            `Failed to fetch spending trends (Status: ${spendingTrendsRes.status})`
+          );
 
         const summaryData = await summaryRes.json();
-        const breakdownData = await expenseBreakdownRes.json(); // Expected: [{ category: "Food", amount: 100 }, ...]
-        const trendsData = await spendingTrendsRes.json(); // Expected: [{ month: "Jan", income: 1000, expenses: 500 }, ...]
+        const breakdownData = await expenseBreakdownRes.json();
+        const trendsData = await spendingTrendsRes.json();
 
         setDashboardSummary(summaryData);
 
-        // Prepare doughnut chart data
         setExpenseBreakdownData({
           labels: breakdownData.map((item) => item.category),
           datasets: [
@@ -196,7 +226,6 @@ export default function DashboardPage() {
           ],
         });
 
-        // Prepare line chart data
         setSpendingTrendsData({
           labels: trendsData.map((d) => d.month),
           datasets: [
@@ -218,30 +247,13 @@ export default function DashboardPage() {
         });
       } catch (error) {
         console.error("Failed to fetch dashboard data:", error);
-        // Consider setting some error state or showing a toast
       } finally {
         setIsLoading(false);
       }
     };
 
     fetchDashboardData();
-  }, [refreshKey, token]); // Add refreshKey to dependency array
-
-  // REMOVE MOCK DATA BASED CALCULATIONS
-  // const totalIncome = mockTransactions ...
-  // const totalExpenses = Math.abs(mockTransactions ...
-  // const netWorth = totalIncome - totalExpenses;
-  // const savingsRate = ((totalIncome - totalExpenses) / totalIncome * 100);
-
-  // const expenseCategories = {};
-  // mockTransactions ...
-  //   expenseCategories[t.category] = (expenseCategories[t.category] || 0) + Math.abs(t.amount);
-  // });
-
-  // const doughnutData = expenseBreakdownData; // Use state directly - This was changed to expenseBreakdownChartData
-  // The old mock-data based "expenseCategories" is no longer available.
-  // The structure of expenseBreakdownChartData is already correct for the chart.
-  // So, this old doughnutData constant should be removed.
+  }, [refreshKey, token]);
 
   const doughnutOptions = {
     plugins: {
@@ -262,9 +274,6 @@ export default function DashboardPage() {
     },
     maintainAspectRatio: false,
   };
-
-  // const lineData = { ... } // This is now replaced by spendingTrendsChartData state
-  // So, this old lineData constant should be removed.
 
   const lineOptions = {
     plugins: {
@@ -301,9 +310,6 @@ export default function DashboardPage() {
     },
     maintainAspectRatio: false,
   };
-
-  // AI Advice functionality is removed as it's not backend-connected and mock templates were removed.
-  // const generateAIAdvice = () => { ... };
 
   if (isLoading) {
     return (
@@ -342,9 +348,20 @@ export default function DashboardPage() {
                     ) : (
                       <ArrowDownRight className="w-4 h-4 text-red-500" />
                     )}
-                    <span className={`${dashboardSummary.netWorthChangePercentage >= 0 ? 'text-green-500' : 'text-red-500'} ml-1`}>
-                      {dashboardSummary.netWorthChangePercentage >= 0 ? '+' : ''}
-                      {(dashboardSummary.netWorthChangePercentage || 0).toFixed(1)}% MoM
+                    <span
+                      className={`${
+                        dashboardSummary.netWorthChangePercentage >= 0
+                          ? "text-green-500"
+                          : "text-red-500"
+                      } ml-1`}
+                    >
+                      {dashboardSummary.netWorthChangePercentage >= 0
+                        ? "+"
+                        : ""}
+                      {(dashboardSummary.netWorthChangePercentage || 0).toFixed(
+                        1
+                      )}
+                      % MoM
                     </span>
                   </div>
                 </div>
@@ -352,8 +369,6 @@ export default function DashboardPage() {
                   <DollarSign className="w-6 h-6 text-white" />
                 </div>
               </div>
-              {/* This is the main MoM display for Net Worth, already dynamic */}
-              {/* The smaller percentage below card was a dummy, now removed as primary MoM is above */}
             </CardContent>
           </Card>
 
@@ -376,9 +391,20 @@ export default function DashboardPage() {
                 ) : (
                   <ArrowDownRight className="w-4 h-4 text-red-500" />
                 )}
-                <span className={`${dashboardSummary.monthlyIncomeChangePercentage >= 0 ? 'text-green-500' : 'text-red-500'} ml-1`}>
-                  {dashboardSummary.monthlyIncomeChangePercentage >= 0 ? '+' : ''}
-                  {(dashboardSummary.monthlyIncomeChangePercentage || 0).toFixed(1)}% MoM
+                <span
+                  className={`${
+                    dashboardSummary.monthlyIncomeChangePercentage >= 0
+                      ? "text-green-500"
+                      : "text-red-500"
+                  } ml-1`}
+                >
+                  {dashboardSummary.monthlyIncomeChangePercentage >= 0
+                    ? "+"
+                    : ""}
+                  {(
+                    dashboardSummary.monthlyIncomeChangePercentage || 0
+                  ).toFixed(1)}
+                  % MoM
                 </span>
               </div>
             </CardContent>
@@ -398,16 +424,25 @@ export default function DashboardPage() {
                 </div>
               </div>
               <div className="flex items-center text-xs text-gray-400 mt-2">
-                {/* For expenses, a positive change (increase) is usually bad (red), negative change (decrease) is good (green) */}
                 {dashboardSummary.monthlyExpensesChangePercentage > 0 ? (
                   <ArrowUpRight className="w-4 h-4 text-red-500" />
                 ) : (
                   <ArrowDownRight className="w-4 h-4 text-green-500" />
                 )}
-                <span className={`${dashboardSummary.monthlyExpensesChangePercentage > 0 ? 'text-red-500' : 'text-green-500'} ml-1`}>
-                  {dashboardSummary.monthlyExpensesChangePercentage > 0 ? '+' : ''}
-                  {/* We show the actual percentage. If it's -5%, it means expenses decreased by 5% (good) */}
-                  {(dashboardSummary.monthlyExpensesChangePercentage || 0).toFixed(1)}% MoM
+                <span
+                  className={`${
+                    dashboardSummary.monthlyExpensesChangePercentage > 0
+                      ? "text-red-500"
+                      : "text-green-500"
+                  } ml-1`}
+                >
+                  {dashboardSummary.monthlyExpensesChangePercentage > 0
+                    ? "+"
+                    : ""}
+                  {(
+                    dashboardSummary.monthlyExpensesChangePercentage || 0
+                  ).toFixed(1)}
+                  % MoM
                 </span>
               </div>
             </CardContent>
@@ -432,9 +467,18 @@ export default function DashboardPage() {
                 ) : (
                   <ArrowDownRight className="w-4 h-4 text-red-500" />
                 )}
-                <span className={`${dashboardSummary.savingsRateChangePercentage >= 0 ? 'text-green-500' : 'text-red-500'} ml-1`}>
-                  {dashboardSummary.savingsRateChangePercentage >= 0 ? '+' : ''}
-                  {(dashboardSummary.savingsRateChangePercentage || 0).toFixed(1)}% MoM
+                <span
+                  className={`${
+                    dashboardSummary.savingsRateChangePercentage >= 0
+                      ? "text-green-500"
+                      : "text-red-500"
+                  } ml-1`}
+                >
+                  {dashboardSummary.savingsRateChangePercentage >= 0 ? "+" : ""}
+                  {(dashboardSummary.savingsRateChangePercentage || 0).toFixed(
+                    1
+                  )}
+                  % MoM
                 </span>
               </div>
             </CardContent>
@@ -491,7 +535,9 @@ export default function DashboardPage() {
             <div className="flex items-center justify-between">
               <div className="flex items-center space-x-2">
                 <Zap className="w-5 h-5 text-yellow-400" />
-                <CardTitle className="text-white">AI Financial Advice</CardTitle>
+                <CardTitle className="text-white">
+                  AI Financial Advice
+                </CardTitle>
               </div>
               <Button
                 onClick={generateAIAdvice}
@@ -510,10 +556,11 @@ export default function DashboardPage() {
             </div>
             {adviceGenerationsLeft > 0 && !isGeneratingAdvice && (
               <p className="text-xs text-gray-400 text-right mt-1 pr-6">
-                {adviceGenerationsLeft} generation{adviceGenerationsLeft === 1 ? '' : 's'} left
+                {adviceGenerationsLeft} generation
+                {adviceGenerationsLeft === 1 ? "" : "s"} left
               </p>
             )}
-             {(adviceGenerationsLeft <= 0 && !isGeneratingAdvice) && (
+            {adviceGenerationsLeft <= 0 && !isGeneratingAdvice && (
               <p className="text-xs text-red-400 text-right mt-1 pr-6">
                 No generations left
               </p>
@@ -522,13 +569,14 @@ export default function DashboardPage() {
           <CardContent>
             {aiAdvice ? (
               <div className="p-4 bg-gradient-to-r from-purple-500/10 to-violet-600/10 rounded-lg border border-purple-500/20">
-                <p className="text-gray-200 whitespace-pre-line">{aiAdvice}</p> {/* Added whitespace-pre-line */}
+                <p className="text-gray-200 whitespace-pre-line">{aiAdvice}</p>{" "}
               </div>
             ) : (
               <div className="text-center py-8">
                 <Zap className="w-12 h-12 text-gray-600 mx-auto mb-4" />
                 <p className="text-gray-400 mb-4">
-                  {aiMessage || "Click \"Generate Advice\" to get personalized financial recommendations using AI."}
+                  {aiMessage ||
+                    'Click "Generate Advice" to get personalized financial recommendations using AI.'}
                 </p>
               </div>
             )}

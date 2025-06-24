@@ -1,9 +1,8 @@
-// lib/api.js
 const API_URL = process.env.NEXT_PUBLIC_API_URL;
 
 /**
  * Fetch all budgets for the current user.
- * @param {string} token JWT auth token
+ * @param {string} token
  */
 export async function fetchBudgets(token) {
   const res = await fetch(`${API_URL}/api/budgets`, {
@@ -18,7 +17,7 @@ export async function fetchBudgets(token) {
 
 /**
  * Fetch all transactions for the current user.
- * @param {string} token JWT auth token
+ * @param {string} token
  */
 export async function fetchTransactions(token) {
   const res = await fetch(`${API_URL}/api/transactions`, {
@@ -30,5 +29,3 @@ export async function fetchTransactions(token) {
   if (!res.ok) throw new Error(`Failed to load transactions: ${res.status}`);
   return res.json();
 }
-
-// …and similarly for goals, categories, etc.

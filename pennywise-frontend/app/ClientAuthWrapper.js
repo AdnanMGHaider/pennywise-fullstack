@@ -1,6 +1,6 @@
-'use client'; // This component is a client component
+"use client";
 
-import { useAuth } from '@/contexts/AuthContext';
+import { useAuth } from "@/contexts/AuthContext";
 
 export default function ClientAuthWrapper({ children }) {
   const { loading } = useAuth();
