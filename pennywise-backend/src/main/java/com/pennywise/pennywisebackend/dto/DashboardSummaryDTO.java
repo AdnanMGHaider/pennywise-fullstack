@@ -19,4 +19,6 @@ public class DashboardSummaryDTO {
     private BigDecimal monthlyIncomeChangePercentage;
     private BigDecimal monthlyExpensesChangePercentage;
     private BigDecimal savingsRateChangePercentage;
+
+    private Integer aiGenerationsLeft; // Added for AI advice counter
 }

@@ -177,7 +177,8 @@ public class DashboardService {
                 netWorthChangePercentage,
                 monthlyIncomeChangePercentage,
                 monthlyExpensesChangePercentage,
-                savingsRateChangePercentage
+                savingsRateChangePercentage,
+                (3 - (currentUser.getAiAdviceCount() == null ? 0 : currentUser.getAiAdviceCount())) // Calculate and pass aiGenerationsLeft
         );
     }
 

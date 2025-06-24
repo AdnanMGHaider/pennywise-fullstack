@@ -161,16 +161,23 @@ public class AIService {
 
         // Construct a detailed prompt
         StringBuilder promptBuilder = new StringBuilder();
-        promptBuilder.append("Provide concise financial advice (1-2 short paragraphs) for a user with the following financial summary for the current month:\n");
+        promptBuilder.append("Based on the following financial summary for the current month, provide three distinct and actionable financial advice bullet points for the user. Each bullet point should be a concrete suggestion or observation.\n\n");
+        promptBuilder.append("Financial Summary:\n");
         promptBuilder.append(String.format("- Monthly Income: $%.2f\n", summary.getTotalIncome()));
         promptBuilder.append(String.format("- Monthly Expenses: $%.2f\n", summary.getTotalExpenses()));
         promptBuilder.append(String.format("- Savings Rate: %.1f%%\n", summary.getSavingsRate()));
         promptBuilder.append(String.format("- Net Worth (Lifetime): $%.2f\n", summary.getNetWorth()));
-        if (summary.getNetWorthChangePercentage() != null) {
+        if (summary.getAiGenerationsLeft() != null && summary.getNetWorthChangePercentage() != null) { // NetWorthChangePercentage might be null if previous month had no data
              promptBuilder.append(String.format("- Net Worth Month-over-Month Change: %.1f%%\n", summary.getNetWorthChangePercentage()));
         }
-        // Consider adding recent spending categories or trends if available and simple to fetch
-        promptBuilder.append("\nFocus on actionable steps or observations. Do not ask questions back. Be encouraging.");
+        // TODO: Consider fetching top 2-3 expense categories for more specific advice if easily available
+        // promptBuilder.append("- Top Expense Categories: Food ($XXX), Transportation ($YYY)\n");
+
+        promptBuilder.append("\nRequested Advice Format (exactly three bullet points):\n");
+        promptBuilder.append("- [Specific actionable advice point 1]\n");
+        promptBuilder.append("- [Specific actionable advice point 2]\n");
+        promptBuilder.append("- [Specific actionable advice point 3]\n");
+        promptBuilder.append("\nBe encouraging and focus on concrete steps. Do not ask questions.");
 
         return promptBuilder.toString();
     }

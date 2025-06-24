@@ -73,6 +73,21 @@ export default function DashboardPage() {
   const { refreshKey } = useRefresh(); // Get refreshKey from context
   const { token } = useAuth();
 
+  useEffect(() => {
+    // Sync adviceGenerationsLeft when dashboardSummary.aiGenerationsLeft is available
+    if (typeof dashboardSummary.aiGenerationsLeft === 'number') {
+      setAdviceGenerationsLeft(dashboardSummary.aiGenerationsLeft);
+      if (dashboardSummary.aiGenerationsLeft <= 0) {
+        setAiMessage("You've used all your AI advice generations for this demo.");
+        setAiAdvice("");
+      } else if (aiMessage === "You've used all your AI advice generations for this demo." && dashboardSummary.aiGenerationsLeft > 0) {
+        // If summary reloads and shows generations are available again (e.g. admin reset), clear the "no generations left" message
+        setAiMessage("You can generate AI financial advice up to 3 times in this demo.");
+      }
+    }
+  }, [dashboardSummary.aiGenerationsLeft]);
+
+
   // Updated generateAIAdvice function will be here later
   async function generateAIAdvice() {
     if (adviceGenerationsLeft <= 0) {
