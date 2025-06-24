@@ -984,7 +984,11 @@ export default function GoalsPage() {
                         {progress.toFixed(1)}%
                       </span>
                     </div>
-                    <Progress value={progress} className="h-2 bg-gray-700" />
+                    <Progress
+                      value={progress}
+                      className="h-2 bg-gray-700"
+                      indicatorClassName="bg-green-500"
+                    />
                   </div>
 
                   {/* amounts */}

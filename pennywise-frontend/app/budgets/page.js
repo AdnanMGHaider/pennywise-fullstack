@@ -343,6 +343,7 @@ export default function BudgetsPage() {
               <Progress 
                 value={Math.min(overallPercentage, 100)} 
                 className="h-3 bg-gray-700"
+                indicatorClassName={getProgressColor(getBudgetStatus(totalSpent, totalBudget))}
               />
               <div className="flex justify-between text-sm text-gray-400">
                 <span>${totalSpent.toLocaleString()} spent</span>
@@ -409,6 +410,7 @@ export default function BudgetsPage() {
                     <Progress 
                       value={Math.min(spentPercentage, 100)} 
                       className="h-2 bg-gray-700"
+                      indicatorClassName={getProgressColor(status)}
                     />
                   </div>
                   
