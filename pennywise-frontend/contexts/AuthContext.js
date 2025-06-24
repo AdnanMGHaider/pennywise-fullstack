@@ -27,10 +27,49 @@ export function AuthProvider({ children }) {
       setUser(JSON.parse(storedUser));
     }
     if (storedToken) {
-      setToken(storedToken);
+      // Verify token with backend before setting user and token
+      verifyToken(storedToken);
+    } else {
+      setLoading(false); // No token, so not loading session
     }
-    setLoading(false);
-  }, []);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []); // Empty dependency array means this runs once on mount
+
+  const verifyToken = async (currentToken) => {
+    try {
+      // Assume an endpoint like /api/auth/me or /api/auth/verify
+      // For now, let's try to fetch user profile or a protected lightweight endpoint
+      // This endpoint needs to exist on the backend and return user details if token is valid
+      const res = await fetch(`${API_URL}/auth/profile`, { // Placeholder endpoint
+        headers: {
+          'Authorization': `Bearer ${currentToken}`,
+        },
+      });
+
+      if (res.ok) {
+        const userData = await res.json();
+         // Ensure userData has expected fields, e.g., id, username, email
+        if (userData && userData.id && userData.username) {
+            setUser({id: userData.id, username: userData.username, name: userData.username, email: userData.email });
+            setToken(currentToken);
+             // Update localStorage if backend returns slightly different/updated user details
+            localStorage.setItem('pennywise_user', JSON.stringify({id: userData.id, username: userData.username, name: userData.username, email: userData.email }));
+        } else {
+            // Response OK but data malformed or not what we expect for a user
+            console.warn("AuthContext: verifyToken response OK but user data is not as expected.", userData);
+            logout(); // Treat as invalid session
+        }
+      } else {
+        // Token is invalid or expired
+        logout(); // This will clear token, user, and redirect via its own logic
+      }
+    } catch (error) {
+      console.error('AuthContext: Error verifying token', error);
+      logout(); // Network error or other issues, treat as invalid session
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const login = async (email, password) => {
     try {

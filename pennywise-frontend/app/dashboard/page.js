@@ -71,7 +71,7 @@ export default function DashboardPage() {
   const [aiMessage, setAiMessage] = useState("You can generate AI financial advice up to 3 times in this demo."); // Initial message
 
   const { refreshKey } = useRefresh(); // Get refreshKey from context
-  const { token } = useAuth();
+  const { token, logout: authLogout } = useAuth(); // Destructure logout as authLogout to avoid naming conflict if any
 
   useEffect(() => {
     // Sync adviceGenerationsLeft when dashboardSummary.aiGenerationsLeft is available
@@ -147,18 +147,27 @@ export default function DashboardPage() {
       console.log("Dashboard fetching data due to refreshKey change:", refreshKey); // For debugging
         const authHeaders = token ? { Authorization: `Bearer ${token}` } : {};
       try {
-        const summaryRes = await fetch(`${API_URL}/dashboard/summary`, { headers: authHeaders });
-        // For expense breakdown, let's fetch for the current month.
-        const currentMonth = getCurrentYearMonth();
-        const expenseBreakdownRes = await fetch(`${API_URL}/dashboard/expense-breakdown?month=${currentMonth}`, { headers: authHeaders });
-        const spendingTrendsRes = await fetch(`${API_URL}/dashboard/spending-trends?months=6`, { headers: authHeaders }); // Fetch last 6 months
+        const responses = await Promise.all([
+          fetch(`${API_URL}/dashboard/summary`, { headers: authHeaders }),
+          fetch(`${API_URL}/dashboard/expense-breakdown?month=${getCurrentYearMonth()}`, { headers: authHeaders }),
+          fetch(`${API_URL}/dashboard/spending-trends?months=6`, { headers: authHeaders })
+        ]);
 
-        if (!summaryRes.ok)
-          throw new Error("Failed to fetch dashboard summary");
-        if (!expenseBreakdownRes.ok)
-          throw new Error("Failed to fetch expense breakdown");
-        if (!spendingTrendsRes.ok)
-          throw new Error("Failed to fetch spending trends");
+        const [summaryRes, expenseBreakdownRes, spendingTrendsRes] = responses;
+
+        if (summaryRes.status === 401 || summaryRes.status === 403 ||
+            expenseBreakdownRes.status === 401 || expenseBreakdownRes.status === 403 ||
+            spendingTrendsRes.status === 401 || spendingTrendsRes.status === 403) {
+          console.error("Auth error fetching dashboard data, logging out.");
+          authLogout();
+          // No need to throw another error here, logout will redirect.
+          // setLoading(false) will be handled in finally.
+          return; // Exit early
+        }
+
+        if (!summaryRes.ok) throw new Error(`Failed to fetch dashboard summary (Status: ${summaryRes.status})`);
+        if (!expenseBreakdownRes.ok) throw new Error(`Failed to fetch expense breakdown (Status: ${expenseBreakdownRes.status})`);
+        if (!spendingTrendsRes.ok) throw new Error(`Failed to fetch spending trends (Status: ${spendingTrendsRes.status})`);
 
         const summaryData = await summaryRes.json();
         const breakdownData = await expenseBreakdownRes.json(); // Expected: [{ category: "Food", amount: 100 }, ...]

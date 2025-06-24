@@ -17,6 +17,7 @@ import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.web.bind.annotation.*;
+import com.pennywise.pennywisebackend.dto.UserProfileDto; // Import the DTO
 
 @CrossOrigin(origins = "*", maxAge = 3600) // Adjust origins as needed for production
 @RestController
@@ -78,7 +79,8 @@ public class AuthController {
         User user = new User(signUpRequest.getUsername(),
                 signUpRequest.getEmail(),
                 encoder.encode(signUpRequest.getPassword()));
-
+        // Ensure aiAdviceCount is initialized, though the User entity now defaults it to 0
+        // user.setAiAdviceCount(0);
         userRepository.save(user);
 
         // Optionally, authenticate the user immediately and return a JWT
@@ -100,5 +102,26 @@ public class AuthController {
                                 registeredUser.getEmail()));
         // Or simply return a success message:
         // return ResponseEntity.ok(new MessageResponse("User registered successfully!"));
+    }
+
+    @GetMapping("/profile")
+    public ResponseEntity<?> getUserProfile() {
+        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+        if (authentication == null || !authentication.isAuthenticated() || "anonymousUser".equals(authentication.getPrincipal())) {
+            return ResponseEntity.status(401).body(new MessageResponse("Error: User not authenticated."));
+        }
+
+        UserDetails userDetails = (UserDetails) authentication.getPrincipal();
+        User user = userRepository.findByUsername(userDetails.getUsername())
+                .orElseThrow(() -> new RuntimeException("Error: Authenticated user not found in database. Inconsistency detected."));
+
+        // The frontend expects: {id, username, name: username, email: userEmail }
+        // And AuthContext's verifyToken will also set localStorage for 'pennywise_user'
+        return ResponseEntity.ok(new UserProfileDto(
+            user.getId(),
+            user.getUsername(), // This is the 'name' field in SignupRequest, and 'username' in User entity
+            user.getEmail(),
+            user.getUsername()  // Using username also for the 'name' field as per current frontend expectation
+        ));
     }
 }
