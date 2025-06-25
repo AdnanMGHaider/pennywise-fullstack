@@ -1,5 +1,7 @@
 package com.pennywise.pennywisebackend.config;
 
+import org.springframework.security.config.Customizer;
+
 import com.pennywise.pennywisebackend.security.jwt.AuthEntryPointJwt;
 import com.pennywise.pennywisebackend.security.jwt.JwtRequestFilter;
 import com.pennywise.pennywisebackend.service.UserDetailsServiceImpl;
@@ -41,19 +43,44 @@ public class SecurityConfig {
         return authenticationConfiguration.getAuthenticationManager();
     }
 
+    // @Bean
+    // public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
+    // http
+    // .csrf(AbstractHttpConfigurer::disable)
+    // .exceptionHandling(exception ->
+    // exception.authenticationEntryPoint(unauthorizedHandler))
+    // .sessionManagement(session ->
+    // session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
+    // .authorizeHttpRequests(auth -> auth
+    // .requestMatchers(new AntPathRequestMatcher("/api/auth/**")).permitAll()
+    // .requestMatchers(new AntPathRequestMatcher("/h2-console/**")).permitAll()
+    // .anyRequest().authenticated());
+
+    // http.headers(headers -> headers.frameOptions(frameOptionsConfig ->
+    // frameOptionsConfig.disable()));
+
+    // http.addFilterBefore(jwtRequestFilter,
+    // UsernamePasswordAuthenticationFilter.class);
+
+    // return http.build();
+    // }
+
     @Bean
     public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
         http
+                .cors(Customizer.withDefaults()) // if you need CORS for your React/Next client
                 .csrf(AbstractHttpConfigurer::disable)
-                .exceptionHandling(exception -> exception.authenticationEntryPoint(unauthorizedHandler))
-                .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
+                .exceptionHandling(e -> e.authenticationEntryPoint(unauthorizedHandler))
+                .sessionManagement(s -> s.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .authorizeHttpRequests(auth -> auth
-                        .requestMatchers(new AntPathRequestMatcher("/api/auth/**")).permitAll()
-                        .requestMatchers(new AntPathRequestMatcher("/h2-console/**")).permitAll()
+                        // match ANY method on /api/auth/**
+                        .requestMatchers("/api/auth/**").permitAll()
+                        // (optional) if you keep the H2 console in prod
+                        .requestMatchers("/h2-console/**").permitAll()
+                        // everything else needs a valid JWT
                         .anyRequest().authenticated());
 
-        http.headers(headers -> headers.frameOptions(frameOptionsConfig -> frameOptionsConfig.disable()));
-
+        http.headers(h -> h.frameOptions(f -> f.disable()));
         http.addFilterBefore(jwtRequestFilter, UsernamePasswordAuthenticationFilter.class);
 
         return http.build();
