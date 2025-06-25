@@ -38,54 +38,78 @@ public class AuthController {
 
     @PostMapping("/login")
     public ResponseEntity<?> authenticateUser(@Valid @RequestBody LoginRequest loginRequest) {
+        try {
+            User userForAuth = userRepository.findByEmail(loginRequest.getUsername())
+                    .orElseThrow(() -> new RuntimeException("Error: User not found with provided email."));
 
-        User userForAuth = userRepository.findByEmail(loginRequest.getUsername())
-                .orElseThrow(() -> new RuntimeException("Error: User not found with provided email."));
+            Authentication authentication = authenticationManager.authenticate(
+                    new UsernamePasswordAuthenticationToken(userForAuth.getUsername(), loginRequest.getPassword()));
 
-        Authentication authentication = authenticationManager.authenticate(
-                new UsernamePasswordAuthenticationToken(userForAuth.getUsername(), loginRequest.getPassword()));
+            SecurityContextHolder.getContext().setAuthentication(authentication);
+            String jwt = jwtUtil.generateJwtToken(authentication);
 
-        SecurityContextHolder.getContext().setAuthentication(authentication);
-        String jwt = jwtUtil.generateJwtToken(authentication);
-
-        return ResponseEntity.ok(new JwtResponse(jwt,
-                userForAuth.getId(),
-                userForAuth.getUsername(),
-                userForAuth.getEmail()));
+            return ResponseEntity.ok(new JwtResponse(jwt,
+                    userForAuth.getId(),
+                    userForAuth.getUsername(),
+                    userForAuth.getEmail()));
+        } catch (RuntimeException e) {
+            // Log the exception details for backend debugging
+            // Consider using a logging framework like SLF4J if not already in use
+            System.err.println("Login error: " + e.getMessage());
+            e.printStackTrace();
+            return ResponseEntity.status(500).body(new MessageResponse("Login failed: " + e.getMessage()));
+        }  catch (Exception e) {
+            System.err.println("Unexpected login error: " + e.getMessage());
+            e.printStackTrace();
+            return ResponseEntity.status(500).body(new MessageResponse("An unexpected error occurred during login."));
+        }
     }
 
     @PostMapping("/register")
     public ResponseEntity<?> registerUser(@Valid @RequestBody SignupRequest signUpRequest) {
-        if (userRepository.existsByUsername(signUpRequest.getUsername())) {
-            return ResponseEntity
-                    .badRequest()
-                    .body(new MessageResponse("Error: Username is already taken!"));
+        try {
+            if (userRepository.existsByUsername(signUpRequest.getUsername())) {
+                return ResponseEntity
+                        .badRequest()
+                        .body(new MessageResponse("Error: Username is already taken!"));
+            }
+
+            if (userRepository.existsByEmail(signUpRequest.getEmail())) {
+                return ResponseEntity
+                        .badRequest()
+                        .body(new MessageResponse("Error: Email is already in use!"));
+            }
+
+            User user = new User(signUpRequest.getUsername(),
+                    signUpRequest.getEmail(),
+                    encoder.encode(signUpRequest.getPassword()));
+            userRepository.save(user);
+
+            // Authenticate the newly registered user
+            Authentication authentication = authenticationManager.authenticate(
+                    new UsernamePasswordAuthenticationToken(signUpRequest.getUsername(), signUpRequest.getPassword()));
+            SecurityContextHolder.getContext().setAuthentication(authentication);
+            String jwt = jwtUtil.generateJwtToken(authentication);
+
+            // Fetch the user again to ensure all details are present (especially ID if generated)
+            // Though 'user' object after save should ideally have the ID if configured correctly.
+            User registeredUser = userRepository.findByUsername(signUpRequest.getUsername())
+                    .orElseThrow(() -> new RuntimeException(
+                            "Error: User not found by username after registration. Critical error."));
+
+            return ResponseEntity.ok(new JwtResponse(jwt,
+                    registeredUser.getId(),
+                    registeredUser.getUsername(),
+                    registeredUser.getEmail()));
+        } catch (RuntimeException e) {
+            System.err.println("Registration error: " + e.getMessage());
+            e.printStackTrace();
+            return ResponseEntity.status(500).body(new MessageResponse("Registration failed: " + e.getMessage()));
+        } catch (Exception e) {
+            System.err.println("Unexpected registration error: " + e.getMessage());
+            e.printStackTrace();
+            return ResponseEntity.status(500).body(new MessageResponse("An unexpected error occurred during registration."));
         }
-
-        if (userRepository.existsByEmail(signUpRequest.getEmail())) {
-            return ResponseEntity
-                    .badRequest()
-                    .body(new MessageResponse("Error: Email is already in use!"));
-        }
-
-        User user = new User(signUpRequest.getUsername(),
-                signUpRequest.getEmail(),
-                encoder.encode(signUpRequest.getPassword()));
-        userRepository.save(user);
-
-        Authentication authentication = authenticationManager.authenticate(
-                new UsernamePasswordAuthenticationToken(signUpRequest.getUsername(), signUpRequest.getPassword()));
-        SecurityContextHolder.getContext().setAuthentication(authentication);
-        String jwt = jwtUtil.generateJwtToken(authentication);
-
-        User registeredUser = userRepository.findByUsername(signUpRequest.getUsername())
-                .orElseThrow(() -> new RuntimeException(
-                        "Error: User not found by username after registration. This should not happen."));
-
-        return ResponseEntity.ok(new JwtResponse(jwt,
-                registeredUser.getId(),
-                registeredUser.getUsername(),
-                registeredUser.getEmail()));
     }
 
     @GetMapping("/profile")
