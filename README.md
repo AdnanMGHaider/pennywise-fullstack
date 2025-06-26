@@ -6,15 +6,29 @@
 ---
 
 ## Table of Contents
-1. [Why Pennywise?](#why-pennywise)
-2. [Feature Highlights](#feature-highlights)
-3. [Tech Stack & Architecture](#tech-stack--architecture)
-4. [Quick Start (Local Dev)](#quick-start-local-dev)
-5. [Environment Variables](#environment-variables)
-6. [Deployment Notes](#deployment-notes)
-7. [Project Structure](#project-structure)
-8. [Roadmap](#roadmap)
-9. [Contributing](#contributing)
+1. [Screenshots](#screenshots)
+2. [Why Pennywise?](#why-pennywise)
+3. [Feature Highlights](#feature-highlights)
+4. [Tech Stack & Architecture](#tech-stack--architecture)
+5. [Quick Start (Local Dev)](#quick-start-local-dev)
+6. [Environment Variables](#environment-variables)
+7. [Deployment Notes](#deployment-notes)
+8. [Project Structure](#project-structure)
+9. [Roadmap](#roadmap)
+10. [Contributing](#contributing)
+
+---
+
+## Screenshots
+
+### Welcome / Login  
+![Welcome page](./assets/screenshot-welcome.png)
+
+### Dashboard  
+![Dashboard overview](./assets/screenshot-dashboard.png)
+
+### Transactions  
+![Transactions list and chart](./assets/screenshot-transactions.png)
 
 ---
 
