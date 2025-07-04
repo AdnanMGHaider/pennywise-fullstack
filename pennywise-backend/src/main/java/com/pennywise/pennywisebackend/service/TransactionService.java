@@ -17,7 +17,6 @@ import java.util.Optional;
 
 @Service
 @RequiredArgsConstructor
-@Transactional
 public class TransactionService {
 
     private final TransactionRepository transactionRepository;
@@ -36,16 +35,19 @@ public class TransactionService {
                         "User not found in database. This should not happen if authenticated."));
     }
 
+    @Transactional(readOnly = true)
     public List<Transaction> getAllTransactions() {
         User currentUser = getCurrentUser();
         return transactionRepository.findByUserId(currentUser.getId());
     }
 
+    @Transactional(readOnly = true)
     public Optional<Transaction> getTransactionById(Long id) {
         User currentUser = getCurrentUser();
         return transactionRepository.findByIdAndUserId(id, currentUser.getId());
     }
 
+    @Transactional
     public Transaction saveTransaction(Transaction transaction) {
         User currentUser = getCurrentUser();
         transaction.setUser(currentUser);
@@ -60,6 +62,7 @@ public class TransactionService {
         return transactionRepository.save(transaction);
     }
 
+    @Transactional
     public Transaction updateTransaction(Long id, Transaction transactionDetails) {
         User currentUser = getCurrentUser();
         Transaction transaction = transactionRepository.findByIdAndUserId(id, currentUser.getId())
@@ -81,6 +84,7 @@ public class TransactionService {
         return transactionRepository.save(transaction);
     }
 
+    @Transactional
     public void deleteTransaction(Long id) {
         User currentUser = getCurrentUser();
         Transaction transaction = transactionRepository.findByIdAndUserId(id, currentUser.getId())
@@ -89,6 +93,7 @@ public class TransactionService {
         transactionRepository.delete(transaction);
     }
 
+    @Transactional(readOnly = true)
     public List<Transaction> filterTransactions(String category, String type, String descriptionKeyword,
             LocalDate startDate, LocalDate endDate) {
         User currentUser = getCurrentUser();
@@ -110,6 +115,7 @@ public class TransactionService {
         return getAllTransactions();
     }
 
+    @Transactional(readOnly = true)
     public List<Transaction> getTransactionsForBudgetCalculation(String category, String type, LocalDate monthStart,
             LocalDate monthEnd) {
         User currentUser = getCurrentUser();
